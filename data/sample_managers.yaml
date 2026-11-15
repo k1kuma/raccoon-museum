@@ -1,0 +1,68 @@
+# Manager directory for the SAMPLE league (used only when the site is built from data/sample.sqlite).
+# The real league uses data/managers.yaml.
+managers:
+  - id: rocky
+    name: Rocky
+    nickname: The Commissioner of Vibes
+    guids: [G-RACCOON-01]
+    bio: Founding member. Drafts quarterbacks early, regrets it late.
+  - id: bandit
+    name: Bandit
+    nickname: Waiver Wire Bandit
+    guids: [G-RACCOON-02]
+    bio: Has never met a Tuesday-night waiver claim he didn't like.
+  - id: mags
+    name: Mags
+    guids: [G-RACCOON-03]
+    bio: Spreadsheet-driven. Terrifying in December.
+  - id: dumpster-dave
+    name: Dumpster Dave
+    guids: [G-RACCOON-04]
+    bio: Lives up to the name about once a season.
+  - id: trash-queen
+    name: Trash Queen
+    guids: [G-RACCOON-05]
+    bio: Trash talk is a contact sport.
+  - id: ringo
+    name: Ringo
+    guids: [G-RACCOON-06]
+  - id: sly
+    name: Sly
+    guids: [G-RACCOON-07]
+    bio: Will propose a 3-for-1 trade at 2 a.m.
+  - id: the-ghost
+    name: The Ghost
+    nickname: "--hidden--"
+    guids: [G-RACCOON-08]
+    bio: Played 2014–2017 under a hidden Yahoo profile. Mapped here via managers.yaml.
+    active: false
+  - id: moonpie
+    name: Moonpie
+    guids: [G-RACCOON-09]
+  - id: coach-klepto
+    name: Coach Klepto
+    guids: [G-RACCOON-10]
+    bio: Steals sleepers, and occasionally your snacks.
+  - id: tex
+    name: Tex
+    guids: [G-RACCOON-11]
+  - id: pickles
+    name: Pickles
+    guids: [G-RACCOON-12]
+    active: false
+  - id: rookie-ricky
+    name: Rookie Ricky
+    guids: [G-RACCOON-13]
+    bio: Took over The Ghost's team in 2018.
+  - id: big-lou
+    name: Big Lou
+    guids: [G-RACCOON-14]
+    bio: Replaced Pickles in 2021 and immediately started a group-chat feud.
+
+lore:
+  - season: 2016
+    title: The Kicker Incident
+    text: A kicker was started at FLEX. Nobody has forgotten. Nobody has forgiven.
+  - season: 2020
+    title: The Zoom Draft
+    text: Half the league's audio cut out during Round 1. The Ghost's pick timer did not.

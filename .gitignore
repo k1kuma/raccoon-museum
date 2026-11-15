@@ -1,0 +1,18 @@
+# secrets
+.env
+.env.*
+*.token.json
+
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# generated
+data/sample.sqlite
+site/src/data/*.json
+site/node_modules/
+site/dist/
+site/.astro/
+.DS_Store

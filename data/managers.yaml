@@ -1,0 +1,25 @@
+# Hand-edited manager directory for the real City Slickin' Raccoons league.
+#
+# How teams are matched to managers (first match wins):
+#   1. `teams:` overrides — "SEASON:TEAM_ID" (e.g. "2017:4"), useful for hidden/"--" managers.
+#   2. `guids:` — Yahoo manager GUIDs (stable across seasons).
+#   3. Fallback — an automatic id from the Yahoo nickname.
+#
+# Run `python -m museum managers` after ingesting to list every season/team/GUID/nickname.
+#
+# Fields: id (URL slug), name, nickname, guids, teams, bio, active (true/false, optional), lore (list of strings)
+managers: []
+#  - id: matt
+#    name: Matt
+#    nickname: The Raccoon King
+#    guids: [ABCDEFGHIJKLMNOP]
+#    teams: ["2016:7"]
+#    bio: Founding member.
+#    lore:
+#      - Once won a playoff game with a backup kicker.
+
+# League-wide lore shown in the Lobby.
+lore: []
+#  - season: 2019
+#    title: The Great Waiver Heist
+#    text: Three managers bid 100% FAAB on the same backup RB. None of them got him.
