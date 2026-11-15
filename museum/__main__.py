@@ -1,4 +1,4 @@
-"""CLI: python -m museum {sample,ingest,stats,managers}"""
+"""CLI: python -m museum {sample,ingest,scrape,stats,managers}"""
 from __future__ import annotations
 
 import argparse
@@ -24,6 +24,15 @@ def main(argv: list[str] | None = None) -> int:
     p_ingest.add_argument("--time-budget", type=float, default=330, help="minutes before stopping gracefully")
     p_ingest.add_argument("--delay", type=float, default=0.35, help="seconds between API calls")
 
+    p_scrape = sub.add_parser("scrape", help="pull data from Yahoo's web pages using browser cookies (YAHOO_COOKIES)")
+    p_scrape.add_argument("--db", type=Path, default=config.LEAGUE_DB)
+    p_scrape.add_argument("--league-id", help="current season's league id (default: YAHOO_LEAGUE_ID)")
+    p_scrape.add_argument("--seasons", help="season:league_id pairs (default: YAHOO_SEASONS or config.SEASONS)")
+    p_scrape.add_argument("--full", action="store_true", help="re-fetch everything, ignoring the cache")
+    p_scrape.add_argument("--season", type=int, action="append", help="only scrape these season(s)")
+    p_scrape.add_argument("--time-budget", type=float, default=300, help="minutes before stopping gracefully")
+    p_scrape.add_argument("--delay", type=float, default=2.0, help="seconds between page requests")
+
     p_stats = sub.add_parser("stats", help="compute stats JSON for the site")
     p_stats.add_argument("--db", type=Path, help="defaults to league.sqlite if present, else sample.sqlite")
     p_stats.add_argument("--out", type=Path, default=config.STATS_OUT)
@@ -44,6 +53,14 @@ def main(argv: list[str] | None = None) -> int:
         from .ingest import run
 
         return run(args)
+    elif args.cmd == "scrape":
+        import os
+
+        from .scrape import run
+
+        args.league_id = args.league_id or os.environ.get("YAHOO_LEAGUE_ID") or config.LEAGUE_ID
+        args.seasons = args.seasons or os.environ.get("YAHOO_SEASONS") or config.SEASONS
+        return run(args)
     elif args.cmd == "stats":
         from .stats import build
 
@@ -59,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
         from . import db
 
         if not db.has_league_data(args.db):
-            print(f"No league data in {args.db} yet — `python -m museum ingest` has to succeed first.\n"
+            print(f"No league data in {args.db} yet — `python -m museum scrape` (or `ingest`) has to succeed first.\n"
                   "(The sample league's managers are already mapped in data/sample_managers.yaml.)", file=sys.stderr)
             return 1
         conn = db.connect(args.db)

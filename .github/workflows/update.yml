@@ -28,6 +28,7 @@ jobs:
     timeout-minutes: 340
     env:
       HAS_YAHOO_TOKEN: ${{ secrets.YAHOO_REFRESH_TOKEN != '' }}
+      HAS_YAHOO_COOKIES: ${{ secrets.YAHOO_COOKIES != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -38,9 +39,23 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - name: Ingest from Yahoo (incremental)
+      # Preferred while the Yahoo API app is unapproved: read the league's web pages with browser cookies.
+      - name: Scrape Yahoo pages (incremental)
+        id: scrape
+        if: github.event_name != 'push' && env.HAS_YAHOO_COOKIES == 'true'
+        continue-on-error: true
+        env:
+          YAHOO_COOKIES: ${{ secrets.YAHOO_COOKIES }}
+          YAHOO_SEASONS: ${{ vars.YAHOO_SEASONS }}
+        run: |
+          python -m museum scrape --time-budget 300 ${{ inputs.full && '--full' || '' }} || {
+            echo "::error::Scrape failed — if the log mentions the login page, refresh the YAHOO_COOKIES secret (README → Scraping with browser cookies)."
+            exit 1
+          }
+
+      - name: Ingest from Yahoo API (incremental)
         id: ingest
-        if: github.event_name != 'push' && env.HAS_YAHOO_TOKEN == 'true'
+        if: github.event_name != 'push' && env.HAS_YAHOO_TOKEN == 'true' && env.HAS_YAHOO_COOKIES != 'true'
         env:
           YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
           YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
@@ -49,7 +64,7 @@ jobs:
         run: python -m museum ingest --time-budget 300 ${{ inputs.full && '--full' || '' }}
 
       - name: Commit updated database
-        if: always() && steps.ingest.conclusion != 'skipped'
+        if: always() && (steps.ingest.conclusion != 'skipped' || steps.scrape.conclusion != 'skipped')
         run: |
           has_data=$(python -c "from museum.db import has_league_data; print(int(has_league_data('data/league.sqlite')))")
           if [ "$has_data" != "1" ]; then

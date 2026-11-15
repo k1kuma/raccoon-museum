@@ -90,6 +90,26 @@ grep '^YAHOO_CLIENT_SECRET=' .env | cut -d= -f2- | gh secret set YAHOO_CLIENT_SE
 > Some people report fixing it by revoking the app's access in their Yahoo account and running `scripts/auth.py` again, so that's worth a try first.
 > Background: [uberfastman/yfpy#84](https://github.com/uberfastman/yfpy/issues/84).
 
+### 1b. Scraping with browser cookies (works without API approval)
+
+While Yahoo hasn't approved the API app, the workflow can read the league's regular web pages instead. These are the same pages you see when you're logged in. It authenticates with your browser's Yahoo cookies, stored as the `YAHOO_COOKIES` secret. When that secret is set, the workflow scrapes instead of calling the API.
+
+1. In a desktop browser, log in at <https://football.fantasysports.yahoo.com/f1/705220>.
+2. Open DevTools (**⌥⌘I** / **F12**) → **Network**, reload the page, and click the first request (`705220`).
+3. Under **Request Headers**, copy the whole value of the `Cookie` header. It's one long line.
+4. Store it as a secret. `gh` prompts you to paste it, so it never appears in your shell history:
+
+   ```bash
+   gh secret set YAHOO_COOKIES --repo k1kuma/raccoon-museum
+   gh workflow run update.yml --repo k1kuma/raccoon-museum
+   ```
+
+The first run backfills every season (about 450 pages, roughly 20 minutes, with a ~2 s pause between requests). Weekly runs fetch about 50 pages. To run it locally instead, put `YAHOO_COOKIES=...` in `.env` and run `python -m museum scrape`, then `python -m museum stats`.
+
+* **Expiry:** Yahoo cookies usually last weeks to months, and logging out of that browser session can end them early. When they expire, the run shows *"Scrape failed … refresh the YAHOO_COOKIES secret"* and the site keeps its last data. Repeat steps 1–4 to fix it.
+* **Seasons:** the scraper reads the seasons in `SEASONS` in [`museum/config.py`](museum/config.py) (`season:league_id` pairs). When the league renews, add the new pair there or set the repository variable `YAHOO_SEASONS`. The new league ID is in the URL.
+* **Risk:** this is equivalent to you browsing the site slowly, but automated access may go against Yahoo's terms. The cookies give full access to your Yahoo account, so keep them only in the secret or `.env`. Delete the secret (`gh secret delete YAHOO_COOKIES --repo k1kuma/raccoon-museum`) to switch back to the API once it's approved.
+
 ### 2. Run the first ingest
 
 ```bash

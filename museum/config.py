@@ -14,6 +14,9 @@ STATS_OUT = ROOT / "site" / "src" / "data"
 LEAGUE_ID = os.environ.get("YAHOO_LEAGUE_ID", "705220")
 LEAGUE_NAME = "City Slickin' Raccoons"
 LEAGUE_URL = f"https://football.fantasysports.yahoo.com/f1/{LEAGUE_ID}"
+# season:league_id for every season the scraper should read. Add the new pair each year the league renews
+# (and update YAHOO_LEAGUE_ID to the new current id).
+SEASONS = "2024:934670,2025:388631,2026:705220"
 
 
 def load_dotenv() -> None:
