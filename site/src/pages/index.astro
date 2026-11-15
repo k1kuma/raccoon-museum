@@ -1,0 +1,128 @@
+---
+import Base from '../layouts/Base.astro';
+import Chip from '../components/Chip.astro';
+import ShareButton from '../components/ShareButton.astro';
+import { meta, lobby, url, fmt, name, latestLabel, champions } from '../lib/data';
+const t = lobby.totals;
+const reigning = champions.banners[0];
+---
+<Base title={meta.leagueName} description={`Headlines, records and lore from ${meta.leagueName}, updated through ${latestLabel}.`} wing="lobby">
+  <section class="hero">
+    <p class="eyebrow">Welcome to the</p>
+    <h1>{meta.leagueName} Museum</h1>
+    <p class="lede">
+      {t.seasons} seasons. {t.games.toLocaleString()} games. {fmt(t.points, 0)} points. {t.trades} trades we still argue about.
+    </p>
+    {reigning && (
+      <p class="reigning" data-manager={reigning.podium[0]?.manager}>
+        🏆 Reigning champion: <Chip id={reigning.podium[0]?.manager} small /> ({reigning.season})
+      </p>
+    )}
+  </section>
+
+  <section class="panel" id="headlines">
+    <div class="panel-head">
+      <h2>This week's headlines <span class="muted">· {latestLabel}</span></h2>
+      <ShareButton href={url('#headlines')} />
+    </div>
+    <ul class="headlines">
+      {lobby.headlines.map((h: any) => (
+        <li data-manager={h.manager}><span class="kicker">{h.kicker}</span> {h.text}</li>
+      ))}
+    </ul>
+  </section>
+
+  <section class="panel" id="records-broken">
+    <div class="panel-head">
+      <h2>Records broken</h2>
+      <ShareButton href={url('#records-broken')} />
+    </div>
+    {lobby.recordsBroken.length === 0 ? (
+      <p class="empty">No records fell this week. The vault is quiet… for now.</p>
+    ) : (
+      <ul class="headlines">
+        {lobby.recordsBroken.map((r: any) => (
+          <li data-manager={r.manager}>
+            <span class="badge badge-new">New #{r.rank}</span>
+            <a href={url(`${r.section}/${r.slug}#no-${r.rank}`)}>{r.title}</a>: {r.caption}
+          </li>
+        ))}
+      </ul>
+    )}
+  </section>
+
+  <div class="grid-2">
+    <section class="panel" id="streaks">
+      <div class="panel-head"><h2>Streak watch</h2><ShareButton href={url('#streaks')} /></div>
+      {lobby.streaks.length === 0 ? <p class="empty">No active streaks of note.</p> : (
+        <ul class="headlines">
+          {lobby.streaks.map((s: any) => (
+            <li data-manager={s.manager}><span class="kicker">{s.display}</span> {s.caption}</li>
+          ))}
+        </ul>
+      )}
+    </section>
+
+    <section class="panel" id="on-this-week">
+      <div class="panel-head"><h2>On this week in history <span class="muted">· Week {lobby.historyWeek}</span></h2><ShareButton href={url('#on-this-week')} /></div>
+      {lobby.thisWeekInHistory.length === 0 ? <p class="empty">History is still being written.</p> : (
+        <ul class="headlines">
+          {lobby.thisWeekInHistory.map((h: any) => <li data-manager={h.manager}>{h.text}</li>)}
+        </ul>
+      )}
+    </section>
+  </div>
+
+  <div class="grid-2">
+    <section class="panel" id="standings">
+      <div class="panel-head"><h2>{meta.latest.season} standings</h2><ShareButton href={url('#standings')} /></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Manager</th><th>Record</th><th class="num">PF</th></tr></thead>
+          <tbody>
+            {lobby.standings.map((s: any) => (
+              <tr data-manager={s.manager}>
+                <td>{s.rank}</td>
+                <td><Chip id={s.manager} small /><span class="team-name">{s.team}</span></td>
+                <td>{s.record}</td>
+                <td class="num">{fmt(s.pointsFor)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel" id="rivalries">
+      <div class="panel-head"><h2>Fiercest rivalries</h2><ShareButton href={url('#rivalries')} /></div>
+      <ul class="headlines">
+        {lobby.fiercestRivalries.map((r: any) => (
+          <li data-pair={r.pair}>
+            <a href={url(`rivalry/${r.pair}`)}><strong>{name(r.a)} vs {name(r.b)}</strong></a> — {r.caption}
+          </li>
+        ))}
+      </ul>
+      <a class="more" href={url('rivalry')}>Enter the Rivalry Room →</a>
+    </section>
+  </div>
+
+  {meta.lore.length > 0 && (
+    <section class="panel" id="lore">
+      <h2>From the archives of lore</h2>
+      <ul class="lore">
+        {meta.lore.map((l: any) => (
+          <li><span class="kicker">{l.season}{l.week ? `, Week ${l.week}` : ''}</span> <strong>{l.title}.</strong> {l.text}</li>
+        ))}
+      </ul>
+    </section>
+  )}
+
+  <section class="wings-grid" aria-label="Explore the museum">
+    <a class="card" href={url('champions')}><h3>🏆 Hall of Champions</h3><p class="muted">Banners, trophies and the ones who came close.</p></a>
+    <a class="card" href={url('records')}><h3>📜 Record Book</h3><p class="muted">Highest scores, blowouts, streaks.</p></a>
+    <a class="card" href={url('managers')}><h3>🖼️ Manager Exhibits</h3><p class="muted">Every owner's career, picks and trades.</p></a>
+    <a class="card" href={url('rivalry')}><h3>⚔️ Rivalry Room</h3><p class="muted">Any two managers, head to head.</p></a>
+    <a class="card" href={url('shame')}><h3>🙈 Hall of Shame</h3><p class="muted">Bench blunders, heartbreaks and busts.</p></a>
+    <a class="card" href={url('archives')}><h3>🗄️ Archives</h3><p class="muted">Standings, brackets and draft boards by season.</p></a>
+  </section>
+</Base>

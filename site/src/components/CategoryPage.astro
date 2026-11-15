@@ -1,0 +1,28 @@
+---
+import Base from '../layouts/Base.astro';
+import StatEntry from './StatEntry.astro';
+import ShareButton from './ShareButton.astro';
+import { url } from '../lib/data';
+interface Props { cat: any; section: string; sectionTitle: string; siblings: any[] }
+const { cat, section, sectionTitle, siblings } = Astro.props;
+const pagePath = `${section}/${cat.slug}`;
+const top = cat.entries[0];
+---
+<Base title={cat.title} description={top ? top.caption : cat.blurb} wing={section}>
+  <nav class="crumbs"><a href={url(section)}>{sectionTitle}</a> / <span>{cat.title}</span></nav>
+  <header class="page-head">
+    <h1>{cat.title}</h1>
+    <p class="lede">{cat.blurb}</p>
+    <ShareButton href={url(pagePath)} text={`${cat.title} — ${top?.caption ?? ''}`} label="Share this exhibit" />
+  </header>
+  {cat.entries.length === 0 && <p class="empty">Nothing on display yet.</p>}
+  <div class="stat-list">
+    {cat.entries.map((e: any) => <StatEntry entry={e} pagePath={pagePath} ranked={cat.ranked} />)}
+  </div>
+  <aside class="also">
+    <h2>More in {sectionTitle}</h2>
+    <ul class="pill-list">
+      {siblings.filter((s) => s.slug !== cat.slug).map((s) => <li><a class="pill" href={url(`${section}/${s.slug}`)}>{s.title}</a></li>)}
+    </ul>
+  </aside>
+</Base>

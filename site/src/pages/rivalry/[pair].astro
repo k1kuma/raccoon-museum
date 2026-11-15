@@ -1,0 +1,68 @@
+---
+import Base from '../../layouts/Base.astro';
+import Chip from '../../components/Chip.astro';
+import ShareButton from '../../components/ShareButton.astro';
+import { rivalries, url, fmt, name, mgr } from '../../lib/data';
+
+export function getStaticPaths() {
+  return Object.entries(rivalries).map(([pair, r]) => ({ params: { pair }, props: { pair, r } }));
+}
+const { pair, r } = Astro.props as { pair: string; r: any };
+const total = r.aWins + r.bWins + r.ties || 1;
+const path = `rivalry/${pair}`;
+---
+<Base title={`${name(r.a)} vs ${name(r.b)}`} description={r.caption} wing="rivalry">
+  <nav class="crumbs"><a href={url('rivalry')}>Rivalry Room</a> / <span>{name(r.a)} vs {name(r.b)}</span></nav>
+  <header class="page-head faceoff" data-pair={pair}>
+    <div class="side"><span class="avatar avatar-xl" style={`--c:${mgr(r.a).color}`}>{mgr(r.a).initials}</span><a class="chip-name" href={url(`managers/${r.a}`)}>{name(r.a)}</a><span class="big">{r.aWins}</span></div>
+    <span class="vs-big">vs</span>
+    <div class="side"><span class="avatar avatar-xl" style={`--c:${mgr(r.b).color}`}>{mgr(r.b).initials}</span><a class="chip-name" href={url(`managers/${r.b}`)}>{name(r.b)}</a><span class="big">{r.bWins}</span></div>
+  </header>
+  <div class="meter" role="img" aria-label={`${name(r.a)} ${r.aWins} wins, ${name(r.b)} ${r.bWins} wins`}>
+    <span style={`width:${(r.aWins / total) * 100}%;background:${mgr(r.a).color}`}></span>
+    <span style={`width:${(r.ties / total) * 100}%;background:#9ca3af`}></span>
+    <span style={`width:${(r.bWins / total) * 100}%;background:${mgr(r.b).color}`}></span>
+  </div>
+  <p class="lede center">{r.caption} {r.hasNew && <span class="badge badge-new">New this week</span>}</p>
+  <p class="center"><ShareButton href={url(path)} text={r.caption} label="Share this rivalry" /></p>
+
+  <section class="kpis">
+    <div class="kpi"><span class="kpi-v">{r.meetings}</span><span class="kpi-l">Meetings ({r.playoffMeetings} in playoffs)</span></div>
+    <div class="kpi"><span class="kpi-v">{fmt(r.aPoints, 0)}</span><span class="kpi-l">{name(r.a)} points</span></div>
+    <div class="kpi"><span class="kpi-v">{fmt(r.bPoints, 0)}</span><span class="kpi-l">{name(r.b)} points</span></div>
+    {r.streak && <div class="kpi"><span class="kpi-v">{r.streak.length}</span><span class="kpi-l">Current streak: {name(r.streak.manager)}</span></div>}
+  </section>
+
+  <div class="grid-2">
+    {r.biggestA && (
+      <section class="panel" id="biggest-a"><h2>{name(r.a)}'s biggest win</h2>
+        <p class="big">{fmt(r.biggestA.aPoints)}–{fmt(r.biggestA.bPoints)}</p><p class="muted">{r.biggestA.label}{r.biggestA.kind !== 'regular' ? ` (${r.biggestA.kind})` : ''}</p></section>
+    )}
+    {r.biggestB && (
+      <section class="panel" id="biggest-b"><h2>{name(r.b)}'s biggest win</h2>
+        <p class="big">{fmt(r.biggestB.bPoints)}–{fmt(r.biggestB.aPoints)}</p><p class="muted">{r.biggestB.label}{r.biggestB.kind !== 'regular' ? ` (${r.biggestB.kind})` : ''}</p></section>
+    )}
+  </div>
+
+  <section class="panel" id="games">
+    <div class="panel-head"><h2>Every meeting</h2><ShareButton href={url(`${path}#games`)} /></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>When</th><th class="num">{name(r.a)}</th><th class="num">{name(r.b)}</th><th>Winner</th></tr></thead>
+        <tbody>
+          {r.games.map((g: any) => {
+            const winner = g.result === 'W' ? r.a : g.result === 'L' ? r.b : null;
+            return (
+              <tr class:list={{ 'is-new-row': g.isNew }} data-manager={winner}>
+                <td><a href={url(`archives/${g.season}`)}>{g.label}</a>{g.isNew && <span class="badge badge-new">New</span>}</td>
+                <td class:list={['num', { win: g.result === 'W' }]}>{fmt(g.aPoints)}</td>
+                <td class:list={['num', { win: g.result === 'L' }]}>{fmt(g.bPoints)}</td>
+                <td>{winner ? name(winner) : 'Tie'}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</Base>

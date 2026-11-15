@@ -1,0 +1,135 @@
+---
+import Base from '../../layouts/Base.astro';
+import Chip from '../../components/Chip.astro';
+import ShareButton from '../../components/ShareButton.astro';
+import { archives, url, fmt, name, recordStr, mgr } from '../../lib/data';
+
+export function getStaticPaths() {
+  return archives.map((s) => ({ params: { season: String(s.season) }, props: { s } }));
+}
+const { s } = Astro.props;
+const path = `archives/${s.season}`;
+const idx = archives.findIndex((a) => a.season === s.season);
+const newer = archives[idx - 1];
+const older = archives[idx + 1];
+---
+<Base title={`${s.season} Season Archive`} description={s.caption} wing="archives">
+  <nav class="crumbs"><a href={url('archives')}>Archives</a> / <span>{s.season}</span></nav>
+  <header class="page-head">
+    <h1>{s.season} {!s.finished && <span class="badge badge-live">In progress</span>}</h1>
+    <p class="lede">{s.caption}</p>
+    <div class="season-nav">
+      {older && <a class="pill" href={url(`archives/${older.season}`)}>← {older.season}</a>}
+      <ShareButton href={url(path)} text={s.caption} label="Share season" />
+      {newer && <a class="pill" href={url(`archives/${newer.season}`)}>{newer.season} →</a>}
+    </div>
+    <nav class="jump"><a href="#standings">Standings</a> · <a href="#bracket">Bracket</a> · <a href="#draft">Draft board</a> · <a href="#results">Results</a> · <a href="#trades">Trades</a></nav>
+  </header>
+
+  <section class="panel" id="standings">
+    <div class="panel-head"><h2>{s.finished ? 'Final standings' : `Standings through Week ${s.lastCompletedWeek}`}</h2><ShareButton href={url(`${path}#standings`)} /></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Manager</th><th>Team</th><th>Record</th><th class="num">PF</th><th class="num">PA</th><th>Seed</th><th>Moves</th><th>Draft</th></tr></thead>
+        <tbody>
+          {s.standings.map((t: any) => (
+            <tr data-manager={t.manager}>
+              <td>{s.finished && t.rank === 1 ? '🏆' : t.rank}</td>
+              <td><Chip id={t.manager} small /></td>
+              <td>{t.team}</td>
+              <td>{recordStr(t.wins, t.losses, t.ties)}</td>
+              <td class="num">{fmt(t.pointsFor)}</td>
+              <td class="num">{fmt(t.pointsAgainst)}</td>
+              <td>{t.seed ?? '—'}</td>
+              <td>{t.moves ?? '—'}{t.trades ? ` / ${t.trades}T` : ''}</td>
+              <td>{t.draftGrade ?? '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" id="bracket">
+    <div class="panel-head"><h2>Playoff bracket</h2><ShareButton href={url(`${path}#bracket`)} /></div>
+    {s.bracket.length === 0 ? <p class="empty">The playoffs haven't started yet.</p> : (
+      <div class="bracket">
+        {s.bracket.map((round: any) => (
+          <div class="round">
+            <h3>{round.name} <span class="muted">· Week {round.week}</span></h3>
+            {round.games.map((g: any) => {
+              const aWon = g.aPoints > g.bPoints;
+              return (
+                <div class:list={['game', { title: g.label === 'Championship' }]}>
+                  {g.label && <span class="game-label">{g.label}</span>}
+                  <div class:list={['side', { win: aWon }]} data-manager={g.a}><Chip id={g.a} small /><span class="num">{fmt(g.aPoints)}</span></div>
+                  <div class:list={['side', { win: !aWon }]} data-manager={g.b}><Chip id={g.b} small /><span class="num">{fmt(g.bPoints)}</span></div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    )}
+  </section>
+
+  <section class="panel" id="draft">
+    <div class="panel-head"><h2>Draft board</h2><ShareButton href={url(`${path}#draft`)} /></div>
+    {s.draftBoard.length === 0 ? <p class="empty">No draft results on file.</p> : (
+      <>
+        <p class="muted">Ranked by points among drafted players{s.finished ? '' : ' so far'}. <span class="tag tag-steal">Steal</span> <span class="tag tag-bust">Bust</span></p>
+        <div class="draft-scroll">
+          <table class="draft">
+            <thead><tr><th>Rd</th>{s.draftOrder.map((id: string) => <th data-manager={id}><span class="avatar" style={`--c:${mgr(id).color}`}>{mgr(id).initials}</span><span class="sr">{name(id)}</span></th>)}</tr></thead>
+            <tbody>
+              {s.draftBoard.map((rd: any) => {
+                const byMgr = new Map(rd.picks.map((p: any) => [p.manager, p]));
+                return (
+                  <tr>
+                    <th>{rd.round}</th>
+                    {s.draftOrder.map((id: string) => {
+                      const p: any = byMgr.get(id);
+                      return p ? (
+                        <td class:list={['pick', p.tag && `tag-${p.tag}`, `pos-${(p.position || '').replace('/', '')}`]} data-manager={id} title={p.caption}>
+                          <span class="pick-no">#{p.pick}</span>
+                          <span class="pick-name">{p.player}</span>
+                          <span class="pick-meta">{p.position} · {fmt(p.points, 0)} pts</span>
+                        </td>
+                      ) : <td></td>;
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </>
+    )}
+  </section>
+
+  <section class="panel" id="results">
+    <div class="panel-head"><h2>Weekly results</h2><ShareButton href={url(`${path}#results`)} /></div>
+    {s.weeks.map((w: any, i: number) => (
+      <details open={i === 0} id={`week-${w.week}`}>
+        <summary>Week {w.week}{w.games.some((g: any) => g.playoffs) ? ' · Playoffs' : ''}</summary>
+        <ul class="results">
+          {w.games.map((g: any) => (
+            <li class:list={{ consolation: g.consolation }}>
+              <span class:list={['r-side', { win: g.aPoints > g.bPoints }]} data-manager={g.a}>{name(g.a)} <span class="num">{fmt(g.aPoints)}</span></span>
+              <span class="muted">–</span>
+              <span class:list={['r-side', { win: g.bPoints > g.aPoints }]} data-manager={g.b}><span class="num">{fmt(g.bPoints)}</span> {name(g.b)}</span>
+              {g.consolation && <span class="badge">consolation</span>}
+            </li>
+          ))}
+        </ul>
+      </details>
+    ))}
+  </section>
+
+  <section class="panel" id="trades">
+    <div class="panel-head"><h2>Trades</h2><ShareButton href={url(`${path}#trades`)} /></div>
+    {s.trades.length === 0 ? <p class="empty">No trades this season. Everyone was too scared.</p> : (
+      <ul class="headlines">{s.trades.map((t: any) => <li data-manager={t.manager}>{t.caption}</li>)}</ul>
+    )}
+  </section>
+</Base>

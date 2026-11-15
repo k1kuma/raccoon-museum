@@ -1,0 +1,134 @@
+---
+import '../styles/global.css';
+import { meta, url, latestLabel } from '../lib/data';
+
+interface Props {
+  title: string;
+  description?: string;
+  wing?: string;
+}
+const { title, description, wing } = Astro.props;
+const fullTitle = title === meta.leagueName ? title : `${title} · ${meta.leagueName} Museum`;
+const desc = description || `The official museum of the ${meta.leagueName} fantasy football league.`;
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+const nav = [
+  ['', 'Lobby', 'lobby'],
+  ['champions', 'Champions', 'champions'],
+  ['records', 'Records', 'records'],
+  ['managers', 'Managers', 'managers'],
+  ['rivalry', 'Rivalry Room', 'rivalry'],
+  ['shame', 'Hall of Shame', 'shame'],
+  ['archives', 'Archives', 'archives'],
+];
+const sortedManagers = [...meta.managers].sort((a, b) => a.name.localeCompare(b.name));
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={desc} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href={url('favicon.svg')} type="image/svg+xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={`${meta.leagueName} Museum`} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={desc} />
+    <meta property="og:url" content={canonical} />
+    <meta name="twitter:card" content="summary" />
+    <meta name="theme-color" content="#2b1d14" />
+  </head>
+  <body data-wing={wing}>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="masthead">
+        <a class="brand" href={url()}>
+          <span class="brand-mark" aria-hidden="true">🦝</span>
+          <span><span class="brand-name">{meta.leagueName}</span><span class="brand-sub">Fantasy Football Museum</span></span>
+        </a>
+        <label class="whoami">
+          <span>Who are you?</span>
+          <select id="whoami" aria-label="Highlight your team">
+            <option value="">Just visiting</option>
+            {sortedManagers.map((m) => <option value={m.id}>{m.name}</option>)}
+          </select>
+        </label>
+      </div>
+      <nav class="wings" aria-label="Museum wings">
+        {nav.map(([href, label, key]) => (
+          <a href={url(href)} aria-current={wing === key ? 'page' : undefined}>{label}</a>
+        ))}
+      </nav>
+    </header>
+    {meta.isSample && (
+      <div class="sample-banner" role="note">
+        Exhibit preview: showing <strong>sample data</strong> until the Yahoo connection is set up.
+      </div>
+    )}
+    <div class="updated">
+      <span class="badge badge-updated">Updated through {latestLabel}{meta.latestFinished ? ' (final)' : ''}</span>
+    </div>
+    <main id="main">
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <p>
+        Data from <a href={meta.leagueUrl} rel="noopener">Yahoo Fantasy Football</a>, refreshed every Tuesday.
+        Last built {new Date(meta.generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.
+      </p>
+      <p><a href={url('')}>Lobby</a> · <a href={url('archives')}>Archives</a> · <a href="https://github.com/k1kuma/raccoon-museum">Source</a></p>
+    </footer>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script>
+      const KEY = 'ffm-me';
+      const select = document.getElementById('whoami') as HTMLSelectElement | null;
+      function applyMe(id: string) {
+        document.body.dataset.me = id;
+        document.querySelectorAll<HTMLElement>('[data-manager]').forEach((el) => {
+          el.classList.toggle('is-me', !!id && el.dataset.manager === id);
+        });
+        document.querySelectorAll<HTMLElement>('[data-pair]').forEach((el) => {
+          el.classList.toggle('is-me', !!id && (el.dataset.pair || '').split('--').includes(id));
+        });
+      }
+      let stored = '';
+      try { stored = localStorage.getItem(KEY) || ''; } catch {}
+      if (select) {
+        if (stored && [...select.options].some((o) => o.value === stored)) select.value = stored;
+        else stored = '';
+        select.addEventListener('change', () => {
+          try { localStorage.setItem(KEY, select.value); } catch {}
+          applyMe(select.value);
+        });
+      }
+      applyMe(stored);
+
+      const toast = document.getElementById('toast');
+      function showToast(msg: string) {
+        if (!toast) return;
+        toast.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2200);
+      }
+      document.addEventListener('click', async (ev) => {
+        const btn = (ev.target as HTMLElement).closest<HTMLElement>('[data-share]');
+        if (!btn) return;
+        ev.preventDefault();
+        const link = new URL(btn.dataset.share || '', location.href).href;
+        const text = btn.dataset.text || document.title;
+        if (navigator.share) {
+          try { await navigator.share({ title: document.title, text, url: link }); return; } catch (e) {
+            if ((e as DOMException).name === 'AbortError') return;
+          }
+        }
+        try {
+          await navigator.clipboard.writeText(link);
+          showToast('Link copied!');
+        } catch {
+          window.prompt('Copy this link:', link);
+        }
+      });
+    </script>
+  </body>
+</html>

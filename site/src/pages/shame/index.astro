@@ -1,0 +1,14 @@
+---
+import Base from '../../layouts/Base.astro';
+import CategoryCard from '../../components/CategoryCard.astro';
+import { shame } from '../../lib/data';
+---
+<Base title="Hall of Shame" description="The bench blunders, heartbreaks and draft busts we will never let anyone forget." wing="shame">
+  <header class="page-head">
+    <h1>Hall of Shame</h1>
+    <p class="lede">The bench blunders, heartbreaks and draft busts we will never let anyone forget.</p>
+  </header>
+  <div class="wings-grid">
+    {shame.map((cat) => <CategoryCard cat={cat} section="shame" />)}
+  </div>
+</Base>

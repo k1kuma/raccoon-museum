@@ -1,0 +1,64 @@
+---
+import Base from '../layouts/Base.astro';
+import Chip from '../components/Chip.astro';
+import ShareButton from '../components/ShareButton.astro';
+import { champions, url, fmt, mgr } from '../lib/data';
+const medals = ['🥇', '🥈', '🥉'];
+const trophy = champions.trophyCase.filter((t: any) => t.titles.length + t.runnerUps.length + t.thirds.length > 0);
+---
+<Base title="Hall of Champions" description="Every champion of the league, banner by banner." wing="champions">
+  <header class="page-head">
+    <h1>Hall of Champions</h1>
+    <p class="lede">Banners hang from the rafters for every title. The runners-up get a plaque. The rest get group-chat mockery.</p>
+  </header>
+
+  <section class="banners">
+    {champions.banners.map((b: any) => {
+      const champ = b.podium[0];
+      return (
+        <article class="banner" id={`season-${b.season}`} data-manager={champ?.manager} style={`--c:${mgr(champ?.manager).color}`}>
+          <div class="banner-top">
+            <span class="banner-year">{b.season}</span>
+            <span class="banner-champ">{mgr(champ?.manager).name}</span>
+            <span class="banner-team">{champ?.team}</span>
+          </div>
+          <p class="caption">{b.caption}</p>
+          <ol class="podium">
+            {b.podium.map((p: any, i: number) => (
+              <li data-manager={p.manager}>
+                <span aria-hidden="true">{medals[i]}</span> <Chip id={p.manager} small />
+                <span class="muted">{p.record} · {fmt(p.pointsFor)} PF{p.seed ? ` · #${p.seed} seed` : ''}</span>
+              </li>
+            ))}
+          </ol>
+          <div class="stat-foot">
+            <a class="more" href={url(`archives/${b.season}`)}>{b.season} archive →</a>
+            <ShareButton href={url(`champions#season-${b.season}`)} text={b.caption} />
+          </div>
+        </article>
+      );
+    })}
+  </section>
+
+  <section class="panel" id="trophy-case">
+    <div class="panel-head"><h2>Trophy case</h2><ShareButton href={url('champions#trophy-case')} /></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Manager</th><th>🏆 Titles</th><th>🥈 Runner-up</th><th>🥉 Third</th></tr></thead>
+        <tbody>
+          {trophy.map((t: any) => (
+            <tr data-manager={t.manager}>
+              <td><Chip id={t.manager} small /></td>
+              <td><strong>{t.titles.length}</strong> <span class="muted">{t.titles.join(', ')}</span></td>
+              <td>{t.runnerUps.length} <span class="muted">{t.runnerUps.join(', ')}</span></td>
+              <td>{t.thirds.length} <span class="muted">{t.thirds.join(', ')}</span></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    {champions.trophyCase.filter((t: any) => t.titles.length === 0).length > 0 && (
+      <p class="muted">Still waiting on a ring: {champions.trophyCase.filter((t: any) => t.titles.length === 0).map((t: any) => mgr(t.manager).name).join(', ')}.</p>
+    )}
+  </section>
+</Base>

@@ -1,0 +1,10 @@
+---
+import CategoryPage from '../../components/CategoryPage.astro';
+import { records } from '../../lib/data';
+
+export function getStaticPaths() {
+  return records.map((cat) => ({ params: { slug: cat.slug }, props: { cat } }));
+}
+const { cat } = Astro.props;
+---
+<CategoryPage cat={cat} section="records" sectionTitle="Record Book" siblings={records} />

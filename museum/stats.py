@@ -176,7 +176,7 @@ class Museum:
         pts = f2(p["season_points"])
         when = "" if p["final"] else " so far"
         return (f"{self.name(p['manager'])} used the #{p['pick']} overall pick (Round {p['round']}) on "
-                f"{p['player_name']} ({p['position']}) in {p['season']}. He finished {ordinal(p['points_rank'])} "
+                f"{p['player_name']} ({p['position']}) in {p['season']}. {p['player_name']} finished {ordinal(p['points_rank'])} "
                 f"among drafted players with {pts} points{when}.")
 
     # ---------- trades ----------
@@ -383,7 +383,7 @@ class Museum:
             n = self.seasons[season]["num_teams"]
             for t in self.teams.values():
                 if t["season"] == season and t["final_rank"] == n:
-                    basement.append(self.entry(season, str(season),
+                    basement.append(self.entry(season, record_str(t["wins"], t["losses"], t["ties"]),
                                                f"{self.name(self.mgr(t['team_key']))}'s {t['name']} finished dead last "
                                                f"in {season} at {record_str(t['wins'], t['losses'], t['ties'])} with "
                                                f"{f2(t['points_for'])} points.",

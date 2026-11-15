@@ -1,0 +1,132 @@
+---
+import Base from '../../layouts/Base.astro';
+import Chip from '../../components/Chip.astro';
+import ShareButton from '../../components/ShareButton.astro';
+import { managers, url, fmt, ordinal } from '../../lib/data';
+
+export function getStaticPaths() {
+  return managers.map((m) => ({ params: { id: m.id }, props: { m } }));
+}
+const { m } = Astro.props;
+const c = m.career;
+const path = `managers/${m.id}`;
+---
+<Base title={`${m.name} — Manager Exhibit`} description={m.caption} wing="managers">
+  <nav class="crumbs"><a href={url('managers')}>Manager Exhibits</a> / <span>{m.name}</span></nav>
+  <header class="page-head exhibit-head" data-manager={m.id}>
+    <span class="avatar avatar-xl" style={`--c:${m.color}`} aria-hidden="true">{m.initials}</span>
+    <div>
+      <h1>{m.name}{!m.active && <span class="badge">Alumni</span>}</h1>
+      {m.nickname && <p class="muted">“{m.nickname}”</p>}
+      <p class="lede">{m.caption}</p>
+      {m.bio && <p>{m.bio}</p>}
+      <ShareButton href={url(path)} text={m.caption} label="Share exhibit" />
+    </div>
+  </header>
+
+  <section class="kpis" id="career">
+    <div class="kpi"><span class="kpi-v">{c.wins}-{c.losses}{c.ties ? `-${c.ties}` : ''}</span><span class="kpi-l">Career record ({(c.pct * 100).toFixed(1)}%)</span></div>
+    <div class="kpi"><span class="kpi-v">{'🏆'.repeat(m.titles.length) || '0'}</span><span class="kpi-l">Titles {m.titles.join(', ')}</span></div>
+    <div class="kpi"><span class="kpi-v">{c.playoffApps}</span><span class="kpi-l">Playoff trips ({c.playoffWins}-{c.playoffLosses})</span></div>
+    <div class="kpi"><span class="kpi-v">{c.bestFinish ? ordinal(c.bestFinish) : '—'}</span><span class="kpi-l">Best finish (avg {c.avgFinish ?? '—'})</span></div>
+    <div class="kpi"><span class="kpi-v">{fmt(c.pointsFor, 0)}</span><span class="kpi-l">Points for</span></div>
+    <div class="kpi"><span class="kpi-v">{fmt(c.benchPoints, 0)}</span><span class="kpi-l">Points left on bench ({c.benchCostWins} lost wins)</span></div>
+    <div class="kpi"><span class="kpi-v">{c.trades}</span><span class="kpi-l">Trades · {c.moves ?? 0} moves</span></div>
+    <div class="kpi"><span class="kpi-v">{c.unluckyLosses}</span><span class="kpi-l">Losses with 2nd-best score</span></div>
+  </section>
+
+  {m.streak && (
+    <p class="callout" data-manager={m.id}><span class="badge badge-live">Active streak</span> {m.streak.caption}</p>
+  )}
+
+  {m.lore.length > 0 && (
+    <section class="panel"><h2>Lore</h2><ul class="lore">{m.lore.map((l: string) => <li>{l}</li>)}</ul></section>
+  )}
+
+  <div class="grid-2">
+    {m.highestScore && (
+      <section class="panel" id="best-week">
+        <div class="panel-head"><h2>Best week</h2><ShareButton href={url(`${path}#best-week`)} /></div>
+        <p class="big">{fmt(m.highestScore.points)}</p>
+        <p>{m.highestScore.label} vs <Chip id={m.highestScore.opponent} small /> ({m.highestScore.result} {fmt(m.highestScore.points)}–{fmt(m.highestScore.opponentPoints)})</p>
+      </section>
+    )}
+    {m.lowestScore && (
+      <section class="panel" id="worst-week">
+        <div class="panel-head"><h2>Worst week</h2><ShareButton href={url(`${path}#worst-week`)} /></div>
+        <p class="big">{fmt(m.lowestScore.points)}</p>
+        <p>{m.lowestScore.label} vs <Chip id={m.lowestScore.opponent} small /> ({m.lowestScore.result} {fmt(m.lowestScore.points)}–{fmt(m.lowestScore.opponentPoints)})</p>
+      </section>
+    )}
+  </div>
+
+  <div class="grid-2">
+    <section class="panel" id="best-picks">
+      <div class="panel-head"><h2>Best draft picks</h2><ShareButton href={url(`${path}#best-picks`)} /></div>
+      {m.bestPicks.length === 0 ? <p class="empty">No draft data yet.</p> : (
+        <ol class="mini-list">{m.bestPicks.map((p: any) => <li><strong>{p.player}</strong> <span class="muted">({p.position}, {p.season}, pick #{p.pick})</span><br />{p.caption}</li>)}</ol>
+      )}
+    </section>
+    <section class="panel" id="worst-picks">
+      <div class="panel-head"><h2>Worst draft picks</h2><ShareButton href={url(`${path}#worst-picks`)} /></div>
+      {m.worstPicks.length === 0 ? <p class="empty">No draft data yet.</p> : (
+        <ol class="mini-list">{m.worstPicks.map((p: any) => <li><strong>{p.player}</strong> <span class="muted">({p.position}, {p.season}, pick #{p.pick})</span><br />{p.caption}</li>)}</ol>
+      )}
+    </section>
+  </div>
+
+  <div class="grid-2">
+    <section class="panel" id="best-trades">
+      <div class="panel-head"><h2>Best trades</h2><ShareButton href={url(`${path}#best-trades`)} /></div>
+      {m.bestTrades.length === 0 ? <p class="empty">No trades on record.</p> : (
+        <ol class="mini-list">{m.bestTrades.map((t: any) => <li><strong class="pos">+{fmt(t.net)}</strong> {t.caption}</li>)}</ol>
+      )}
+    </section>
+    <section class="panel" id="worst-trades">
+      <div class="panel-head"><h2>Worst trades</h2><ShareButton href={url(`${path}#worst-trades`)} /></div>
+      {m.worstTrades.length === 0 ? <p class="empty">No regrettable trades. Suspicious.</p> : (
+        <ol class="mini-list">{m.worstTrades.map((t: any) => <li><strong class="neg">{fmt(t.net)}</strong> {t.caption}</li>)}</ol>
+      )}
+    </section>
+  </div>
+
+  <section class="panel" id="seasons">
+    <div class="panel-head"><h2>Season by season</h2><ShareButton href={url(`${path}#seasons`)} /></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Season</th><th>Team</th><th>Record</th><th class="num">PF</th><th class="num">PA</th><th>Finish</th></tr></thead>
+        <tbody>
+          {[...m.seasons].reverse().map((s: any) => (
+            <tr>
+              <td><a href={url(`archives/${s.season}`)}>{s.season}</a></td>
+              <td>{s.team}</td>
+              <td>{s.wins}-{s.losses}{s.ties ? `-${s.ties}` : ''}</td>
+              <td class="num">{fmt(s.pointsFor)}</td>
+              <td class="num">{fmt(s.pointsAgainst)}</td>
+              <td>{s.finished ? (s.rank === 1 ? '🏆 Champion' : s.rank ? ordinal(s.rank) : '—') : 'In progress'}{s.madePlayoffs && s.rank !== 1 ? ' · playoffs' : ''}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" id="rivals">
+    <div class="panel-head"><h2>Head-to-head</h2><ShareButton href={url(`${path}#rivals`)} /></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Opponent</th><th>Record</th><th>Games</th><th></th></tr></thead>
+        <tbody>
+          {m.rivals.map((r: any) => (
+            <tr data-manager={r.opponent}>
+              <td><Chip id={r.opponent} small /></td>
+              <td>{r.wins}-{r.losses}{r.ties ? `-${r.ties}` : ''}</td>
+              <td>{r.meetings}</td>
+              <td><a href={url(`rivalry/${r.pair}`)}>Rivalry →</a></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</Base>

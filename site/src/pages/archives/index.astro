@@ -1,0 +1,23 @@
+---
+import Base from '../../layouts/Base.astro';
+import Chip from '../../components/Chip.astro';
+import { archives, url } from '../../lib/data';
+---
+<Base title="Archives" description="Season-by-season standings, playoff brackets and draft boards." wing="archives">
+  <header class="page-head">
+    <h1>Archives</h1>
+    <p class="lede">Every season, preserved: final standings, playoff brackets, draft boards and weekly results.</p>
+  </header>
+  <div class="wings-grid">
+    {archives.map((s) => {
+      const champ = s.finished ? s.standings.find((t: any) => t.rank === 1) : null;
+      return (
+        <a class="card" href={url(`archives/${s.season}`)} data-manager={champ?.manager}>
+          <h3>{s.season} {!s.finished && <span class="badge badge-live">In progress</span>}</h3>
+          <p class="caption">{s.caption}</p>
+          {champ && <p>🏆 <Chip id={champ.manager} small link={false} /></p>}
+        </a>
+      );
+    })}
+  </div>
+</Base>

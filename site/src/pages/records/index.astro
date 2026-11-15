@@ -1,0 +1,14 @@
+---
+import Base from '../../layouts/Base.astro';
+import CategoryCard from '../../components/CategoryCard.astro';
+import { records } from '../../lib/data';
+---
+<Base title="Record Book" description="Every record, ranked. Tap any exhibit to see the full leaderboard — every entry has its own shareable link." wing="records">
+  <header class="page-head">
+    <h1>Record Book</h1>
+    <p class="lede">Every record, ranked. Tap any exhibit to see the full leaderboard — every entry has its own shareable link.</p>
+  </header>
+  <div class="wings-grid">
+    {records.map((cat) => <CategoryCard cat={cat} section="records" />)}
+  </div>
+</Base>

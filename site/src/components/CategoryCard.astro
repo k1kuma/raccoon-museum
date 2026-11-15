@@ -1,0 +1,17 @@
+---
+import { url } from '../lib/data';
+interface Props { cat: any; section: string }
+const { cat, section } = Astro.props;
+const top = cat.entries[0];
+---
+<a class="card wing-card" href={url(`${section}/${cat.slug}`)} data-manager={top?.manager}>
+  <h3>{cat.title} {cat.hasNew && <span class="badge badge-new">New</span>}</h3>
+  <p class="muted">{cat.blurb}</p>
+  {top && (
+    <>
+      <p class="big">{top.display}</p>
+      <p class="caption">{top.caption}</p>
+    </>
+  )}
+  <span class="more">See all {cat.entries.length} →</span>
+</a>

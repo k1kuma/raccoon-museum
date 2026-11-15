@@ -1,0 +1,45 @@
+---
+import Base from '../../layouts/Base.astro';
+import { meta, rivalries, url, name } from '../../lib/data';
+const sorted = [...meta.managers].sort((a, b) => a.name.localeCompare(b.name));
+const keys = Object.keys(rivalries);
+const top = Object.entries(rivalries).sort((a: any, b: any) => b[1].meetings - a[1].meetings).slice(0, 12);
+---
+<Base title="Rivalry Room" description="Pick any two managers and relive their head-to-head history." wing="rivalry">
+  <header class="page-head">
+    <h1>Rivalry Room</h1>
+    <p class="lede">Pick any two managers. Every rivalry has its own page — perfect for settling arguments in the group chat.</p>
+  </header>
+  <form class="panel rivalry-picker" id="picker" data-base={url('rivalry')} data-keys={JSON.stringify(keys)}>
+    <label>Manager<select name="a" required><option value="">Choose…</option>{sorted.map((m) => <option value={m.id}>{m.name}</option>)}</select></label>
+    <span class="vs-big">vs</span>
+    <label>Manager<select name="b" required><option value="">Choose…</option>{sorted.map((m) => <option value={m.id}>{m.name}</option>)}</select></label>
+    <button type="submit" class="btn">Face off</button>
+    <p class="picker-msg muted" aria-live="polite"></p>
+  </form>
+  <section class="panel">
+    <h2>Most-played rivalries</h2>
+    <ul class="headlines">
+      {top.map(([k, r]: [string, any]) => (
+        <li data-pair={k}><a href={url(`rivalry/${k}`)}><strong>{name(r.a)} vs {name(r.b)}</strong></a> — {r.caption}</li>
+      ))}
+    </ul>
+  </section>
+  <script>
+    const form = document.getElementById('picker') as HTMLFormElement;
+    const msg = form.querySelector('.picker-msg') as HTMLElement;
+    const keys: string[] = JSON.parse(form.dataset.keys || '[]');
+    const me = (() => { try { return localStorage.getItem('ffm-me') || ''; } catch { return ''; } })();
+    const a = form.elements.namedItem('a') as HTMLSelectElement;
+    if (me && !a.value) a.value = me;
+    form.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      const b = (form.elements.namedItem('b') as HTMLSelectElement).value;
+      if (!a.value || !b) return;
+      if (a.value === b) { msg.textContent = "That's a mirror, not a rivalry. Pick two different managers."; return; }
+      const key = [a.value, b].sort().join('--');
+      if (!keys.includes(key)) { msg.textContent = 'These two have never met. A rivalry waiting to happen.'; return; }
+      location.href = `${form.dataset.base}${key}/`;
+    });
+  </script>
+</Base>

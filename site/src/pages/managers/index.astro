@@ -1,0 +1,22 @@
+---
+import Base from '../../layouts/Base.astro';
+import { managers, url, fmt } from '../../lib/data';
+const sorted = [...managers].sort((a, b) => (Number(b.active) - Number(a.active)) || b.titles.length - a.titles.length || b.career.pct - a.career.pct);
+---
+<Base title="Manager Exhibits" description="A portrait gallery of every manager in league history." wing="managers">
+  <header class="page-head">
+    <h1>Manager Exhibits</h1>
+    <p class="lede">A portrait gallery of every manager to ever set a lineup in this league.</p>
+  </header>
+  <div class="wings-grid">
+    {sorted.map((m) => (
+      <a class="card portrait" href={url(`managers/${m.id}`)} data-manager={m.id}>
+        <span class="avatar avatar-lg" style={`--c:${m.color}`} aria-hidden="true">{m.initials}</span>
+        <h3>{m.name}{!m.active && <span class="badge">Alumni</span>}</h3>
+        {m.nickname && <p class="muted">“{m.nickname}”</p>}
+        <p><strong>{m.career.wins}-{m.career.losses}{m.career.ties ? `-${m.career.ties}` : ''}</strong> · {'🏆'.repeat(m.titles.length) || 'No titles'}</p>
+        <p class="muted">{m.firstSeason}–{m.lastSeason} · {fmt(m.career.pointsFor, 0)} career points</p>
+      </a>
+    ))}
+  </div>
+</Base>

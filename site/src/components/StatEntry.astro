@@ -1,0 +1,23 @@
+---
+import Chip from './Chip.astro';
+import ShareButton from './ShareButton.astro';
+import { url } from '../lib/data';
+interface Props { entry: any; pagePath: string; ranked?: boolean; compact?: boolean }
+const { entry, pagePath, ranked = true, compact = false } = Astro.props;
+const anchor = `no-${entry.rank}`;
+---
+<article class:list={['stat', { compact, 'is-new': entry.isNew }]} id={anchor} data-manager={entry.manager}>
+  <div class="stat-head">
+    {ranked && <span class="rank" aria-label={`Rank ${entry.rank}`}>#{entry.rank}</span>}
+    <span class="stat-value">{entry.display}</span>
+    {entry.isNew && <span class="badge badge-new">New this week</span>}
+    {entry.active && <span class="badge badge-live">Active</span>}
+  </div>
+  <p class="caption">{entry.caption}</p>
+  <div class="stat-foot">
+    <Chip id={entry.manager} small />
+    {entry.opponent && <span class="vs">vs</span>}
+    {entry.opponent && <Chip id={entry.opponent} small />}
+    {!compact && <ShareButton href={url(`${pagePath}#${anchor}`)} text={entry.caption} />}
+  </div>
+</article>
