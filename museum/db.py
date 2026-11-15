@@ -152,3 +152,15 @@ def was_fetched(conn: sqlite3.Connection, key: str) -> bool:
 
 def mark_fetched(conn: sqlite3.Connection, key: str) -> None:
     upsert(conn, "fetch_log", {"key": key, "fetched_at": datetime.now(timezone.utc).isoformat()})
+
+
+def has_league_data(path: Path | str) -> bool:
+    """True if `path` is a database that actually contains league teams (not an empty shell)."""
+    path = Path(path)
+    if not path.exists() or path.stat().st_size == 0:
+        return False
+    try:
+        with sqlite3.connect(f"file:{path}?mode=ro", uri=True) as conn:
+            return conn.execute("SELECT COUNT(*) FROM teams").fetchone()[0] > 0
+    except sqlite3.Error:
+        return False

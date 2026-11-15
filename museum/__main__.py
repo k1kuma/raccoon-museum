@@ -47,7 +47,9 @@ def main(argv: list[str] | None = None) -> int:
     elif args.cmd == "stats":
         from .stats import build
 
-        db_path = args.db or (config.LEAGUE_DB if config.LEAGUE_DB.exists() else config.SAMPLE_DB)
+        from .db import has_league_data
+
+        db_path = args.db or (config.LEAGUE_DB if has_league_data(config.LEAGUE_DB) else config.SAMPLE_DB)
         if not db_path.exists():
             print(f"No database at {db_path}. Run `python -m museum sample` or `ingest` first.", file=sys.stderr)
             return 1
@@ -56,6 +58,10 @@ def main(argv: list[str] | None = None) -> int:
     elif args.cmd == "managers":
         from . import db
 
+        if not db.has_league_data(args.db):
+            print(f"No league data in {args.db} yet — `python -m museum ingest` has to succeed first.\n"
+                  "(The sample league's managers are already mapped in data/sample_managers.yaml.)", file=sys.stderr)
+            return 1
         conn = db.connect(args.db)
         rows = conn.execute(
             "SELECT season, team_id, name, manager_guid, manager_nickname FROM teams ORDER BY manager_guid, season"

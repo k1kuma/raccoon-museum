@@ -83,6 +83,13 @@ grep '^YAHOO_CLIENT_SECRET=' .env | cut -d= -f2- | gh secret set YAHOO_CLIENT_SE
 
 > Never commit `.env`, and never paste these values into issues, PRs, or chat.
 
+> **Yahoo Fantasy API approval.** Since mid-2026, Yahoo makes apps apply for Fantasy Sports API access.
+> Without approval, logging in works but every API call fails with *"This application is not authorized to perform this action"*.
+> Apply with your app's Client ID at <https://sports.yahoo.com/developer/access/>. Approval reportedly takes 1–3 weeks.
+> After approval your existing token keeps working; just re-run the workflow.
+> Some people report fixing it by revoking the app's access in their Yahoo account and running `scripts/auth.py` again, so that's worth a try first.
+> Background: [uberfastman/yfpy#84](https://github.com/uberfastman/yfpy/issues/84).
+
 ### 2. Run the first ingest
 
 ```bash

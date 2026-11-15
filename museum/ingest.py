@@ -152,17 +152,27 @@ def discover_chain(y: Yahoo, league_id: str, game_id: str | None) -> list[tuple[
     """Returns [(league_id, game_id, metadata)] for every reachable season, oldest first."""
     seen: dict[str, tuple[str, str | None, dict]] = {}
 
-    def fetch(lid: str, gid: str | None) -> dict | None:
+    def fetch(lid: str, gid: str | None, errors: list[str] | None = None) -> dict | None:
         try:
             return y.call(lid, gid, "get_league_metadata")
         except StopIngest:
             raise
         except Exception as exc:  # noqa: BLE001 - Yahoo returns many error shapes
+            if errors is not None:
+                errors.append(str(exc))
             log.warning("Cannot access league %s (game %s): %s", lid, gid, exc)
             return None
 
-    start = fetch(league_id, game_id)
+    errors: list[str] = []
+    start = fetch(league_id, game_id, errors)
     if not start:
+        if any("not authorized" in e.lower() for e in errors):
+            raise SystemExit(
+                "Yahoo rejected the request: 'This application is not authorized to perform this action'.\n"
+                "Login worked, but your Yahoo app has no Fantasy Sports API access. Since mid-2026 Yahoo requires\n"
+                "approval: apply with your app's Client ID at https://sports.yahoo.com/developer/access/ \n"
+                "(see https://github.com/uberfastman/yfpy/issues/84)."
+            )
         raise SystemExit(f"Could not read league {league_id}. If it is not this year's league, set YAHOO_GAME_ID.")
     gid = str(start.get("game_id") or (start.get("league_key", "").split(".")[0]) or game_id)
     seen[str(start["season"])] = (league_id, gid, start)
@@ -354,9 +364,10 @@ def ingest_transactions(y: Yahoo, conn, league_id, game_id, season) -> None:
 def run(args) -> int:
     deadline = time.time() + args.time_budget * 60
     y = Yahoo(delay=args.delay, deadline=deadline)
+    # Discover before touching the DB so a failed login never leaves an empty league.sqlite behind.
+    chain = discover_chain(y, args.league_id, os.environ.get("YAHOO_GAME_ID") or None)
     conn = db.connect(args.db)
     try:
-        chain = discover_chain(y, args.league_id, os.environ.get("YAHOO_GAME_ID") or None)
         log.info("Discovered seasons: %s", ", ".join(str(m.get("season")) for _, _, m in chain))
         for league_id, game_id, meta in reversed(chain):  # newest first so this week's data lands quickly
             if args.season and intval(meta.get("season")) not in args.season:

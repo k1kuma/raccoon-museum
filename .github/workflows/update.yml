@@ -51,6 +51,11 @@ jobs:
       - name: Commit updated database
         if: always() && steps.ingest.conclusion != 'skipped'
         run: |
+          has_data=$(python -c "from museum.db import has_league_data; print(int(has_league_data('data/league.sqlite')))")
+          if [ "$has_data" != "1" ]; then
+            echo "No league data to commit."
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/league.sqlite
@@ -58,12 +63,14 @@ jobs:
             echo "No data changes."
           else
             git commit -m "Update league data ($(date -u +%Y-%m-%d))"
-            git push
+            git pull --rebase -X theirs origin main
+            git push origin HEAD:main
           fi
 
       - name: Generate sample data (until real data exists)
         run: |
-          if [ ! -f data/league.sqlite ]; then
+          has_data=$(python -c "from museum.db import has_league_data; print(int(has_league_data('data/league.sqlite')))")
+          if [ "$has_data" != "1" ]; then
             echo "::notice::No data/league.sqlite yet — building the site from sample data."
             python -m museum sample
           fi
