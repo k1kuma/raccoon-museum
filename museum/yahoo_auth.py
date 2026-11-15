@@ -9,6 +9,7 @@ import base64
 import json
 import os
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -31,9 +32,23 @@ def authorize_url(client_id: str) -> str:
     return f"{AUTH_URL}?{urllib.parse.urlencode(params)}"
 
 
+class YahooAuthError(RuntimeError):
+    def __init__(self, status: int, error: str, description: str):
+        self.status, self.error, self.description = status, error, description
+        super().__init__(f"Yahoo token request failed (HTTP {status}): {error} — {description}")
+
+
 def _token_request(client_id: str, client_secret: str, data: dict) -> dict:
+    client_id, client_secret = client_id.strip(), client_secret.strip()
     basic = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
-    body = urllib.parse.urlencode({**data, "redirect_uri": redirect_uri()}).encode()
+    body = urllib.parse.urlencode(
+        {
+            **data,
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "redirect_uri": redirect_uri(),
+        }
+    ).encode()
     req = urllib.request.Request(
         TOKEN_URL,
         data=body,
@@ -43,8 +58,16 @@ def _token_request(client_id: str, client_secret: str, data: dict) -> dict:
         },
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        payload = json.loads(resp.read().decode())
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            payload = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as exc:
+        raw = exc.read().decode(errors="replace")
+        try:
+            err = json.loads(raw)
+        except ValueError:
+            err = {"error": exc.reason, "error_description": raw[:300]}
+        raise YahooAuthError(exc.code, str(err.get("error", "")), str(err.get("error_description", ""))) from None
     payload["token_time"] = time.time()
     return payload
 
