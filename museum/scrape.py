@@ -139,7 +139,7 @@ def parse_settings(html: str) -> dict:
     for tr in s.select("#settings-table tr"):
         cells = tr.find_all(["td", "th"], recursive=False)
         if len(cells) >= 2:
-            raw[text(cells[0]).rstrip(":").strip()] = text(cells[1])
+            raw[" ".join(text(cells[0]).split()).rstrip(":").strip()] = " ".join(text(cells[1]).split())
     out: dict = {"name": raw.get("League Name")}
     if m := re.search(r"(\d+)", raw.get("Max Teams", "")):
         out["num_teams"] = int(m.group(1))
@@ -463,7 +463,11 @@ class SeasonScraper:
     def run(self) -> None:
         s, conn = self.season, self.conn
         if not self.full and db.was_fetched(conn, f"season:{s}:complete"):
-            log.info("%s: complete in cache, skipping", s)
+            row = conn.execute("SELECT roster_positions FROM seasons WHERE season=?", (s,)).fetchone()
+            if row and json.loads(row["roster_positions"] or "[]"):
+                log.info("%s: complete in cache, skipping", s)
+                return
+            self.repair_settings()
             return
         settings = parse_settings(self.f.get(f"{self.prefix}/settings"))
         if not settings.get("end_week"):
@@ -517,6 +521,19 @@ class SeasonScraper:
         if finished:
             db.mark_fetched(conn, f"season:{s}:complete")
         conn.commit()
+
+    def repair_settings(self) -> None:
+        """Re-read settings/bracket for a cached season (2 requests) instead of re-scraping every week."""
+        s, conn = self.season, self.conn
+        settings = parse_settings(self.f.get(f"{self.prefix}/settings"))
+        conn.execute("UPDATE seasons SET roster_positions=?, playoff_start_week=COALESCE(?, playoff_start_week), "
+                     "num_playoff_teams=COALESCE(?, num_playoff_teams) WHERE season=?",
+                     (json.dumps(settings.get("roster_positions", [])), settings.get("playoff_start_week"),
+                      settings.get("num_playoff_teams"), s))
+        self.set_seeds(parse_bracket(self.f.get(self.prefix), self.lid), settings.get("playoff_start_week"),
+                       settings.get("num_playoff_teams"))
+        conn.commit()
+        log.info("%s: repaired settings from cache (%s starting slots)", s, len(settings.get("roster_positions", [])))
 
     def scrape_week(self, week: int, po_start: int | None) -> None:
         s = self.season
@@ -573,6 +590,14 @@ class SeasonScraper:
                        (SELECT playoff_seed FROM teams WHERE team_key = matchups.team_key) > :n OR
                        (SELECT playoff_seed FROM teams WHERE team_key = matchups.opponent_key) > :n THEN 1 ELSE 0 END
                    WHERE season = :s AND is_playoffs = 1""", {"n": num_playoff, "s": s})
+        # League setting "Playoff Tie-Breaker: Higher seed wins".
+        conn.execute(
+            """UPDATE matchups SET result = CASE WHEN
+                   (SELECT playoff_seed FROM teams WHERE team_key = matchups.team_key) <
+                   (SELECT playoff_seed FROM teams WHERE team_key = matchups.opponent_key) THEN 'W' ELSE 'L' END
+               WHERE season = ? AND is_playoffs = 1 AND points = opponent_points AND opponent_key IS NOT NULL
+                   AND (SELECT playoff_seed FROM teams WHERE team_key = matchups.team_key) IS NOT NULL
+                   AND (SELECT playoff_seed FROM teams WHERE team_key = matchups.opponent_key) IS NOT NULL""", (s,))
 
     def scrape_players(self) -> tuple[dict[str, str], dict[str, float]]:
         positions: dict[str, str] = {}
@@ -678,6 +703,26 @@ def clean_cookies(raw: str) -> str:
     return value
 
 
+def backfill_positions(conn) -> None:
+    """Fill positions still missing (bench-only or rarely-used players) from any other season or source."""
+    known: dict[str, str] = {}
+    for sql in ("SELECT player_key, primary_position FROM roster_slots WHERE primary_position <> ''",
+                "SELECT player_key, position FROM draft_picks WHERE position <> ''",
+                "SELECT player_key, position FROM transaction_players WHERE position <> ''"):
+        for key, pos in conn.execute(sql).fetchall():
+            known.setdefault(key, pos)
+    for key in [r[0] for r in conn.execute("SELECT DISTINCT player_key FROM roster_slots WHERE "
+                                           "primary_position IS NULL OR primary_position = ''")]:
+        if key in known:
+            conn.execute("UPDATE roster_slots SET primary_position=?, eligible_positions=? WHERE player_key=? AND "
+                         "(primary_position IS NULL OR primary_position = '')", (known[key], known[key], key))
+    for key in [r[0] for r in conn.execute("SELECT DISTINCT player_key FROM draft_picks WHERE "
+                                           "position IS NULL OR position = ''")]:
+        if key in known:
+            conn.execute("UPDATE draft_picks SET position=? WHERE player_key=? AND (position IS NULL OR position = '')",
+                         (known[key], key))
+
+
 def run(args) -> int:
     cookies = clean_cookies(os.environ.get("YAHOO_COOKIES", ""))
     if not cookies:
@@ -716,6 +761,7 @@ def run(args) -> int:
     except CookiesExpired as exc:
         log.error("%s", exc)
         status = 1
+    backfill_positions(conn)
     if conn.execute("SELECT COUNT(*) FROM teams").fetchone()[0]:
         db.set_meta(conn, "is_sample", "0")
         db.set_meta(conn, "last_ingest", datetime.now(timezone.utc).isoformat())

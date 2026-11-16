@@ -47,6 +47,18 @@ def test_sample_to_stats_end_to_end(tmp_path):
     assert len(champions["banners"]) == 12  # 2014-2025 finished
 
 
+def test_consolation_games_flagged_as_playoffs_dont_count_as_playoffs(tmp_path):
+    import sqlite3
+    db_path = sample.generate(tmp_path / "s.sqlite", today=date(2026, 11, 14))
+    stats.build(db_path, tmp_path / "before")
+    with sqlite3.connect(db_path) as conn:  # Yahoo (and the scraper) flag consolation games is_playoffs=1 too
+        assert conn.execute("UPDATE matchups SET is_playoffs = 1 WHERE is_consolation = 1").rowcount
+    stats.build(db_path, tmp_path / "after")
+    record = lambda d: {m["id"]: (m["career"]["playoffWins"], m["career"]["playoffLosses"])  # noqa: E731
+                        for m in json.loads((tmp_path / d / "managers.json").read_text())}
+    assert record("after") == record("before")
+
+
 # --- web scraper parsers (synthetic HTML mirroring Yahoo's markup) ---
 
 from museum import scrape  # noqa: E402
@@ -68,7 +80,7 @@ def _player(pid, name, pos, href=None):
 def test_scrape_settings_playoffs_and_roster():
     html = """<table id="settings-table"><tr><td>Max Teams:</td><td>12</td></tr>
     <tr><td>Playoffs:</td><td>6 teams - Week 15, 16 and 17 (ends Jan 4)</td></tr>
-    <tr><td>Roster Positions:</td><td>QB, WR, W/R/T, K, DEF, BN, BN, IR</td></tr></table>"""
+    <tr><td>Roster&nbsp;Positions:</td><td>QB, WR, W/R/T, K, DEF, BN, BN, IR</td></tr></table>"""
     s = scrape.parse_settings(html)
     assert (s["num_teams"], s["num_playoff_teams"], s["playoff_start_week"], s["end_week"]) == (12, 6, 15, 17)
     assert s["roster_positions"] == ["QB", "WR", "W/R/T", "K", "DEF"]
