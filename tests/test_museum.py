@@ -111,3 +111,9 @@ def test_scrape_draft_overall_pick_and_timestamp_rollover():
     assert (pick["round"], pick["pick"], pick["position"], pick["team_name"]) == (2, 15, "RB", "Team X")
     assert scrape.parse_timestamp("Jan 2, 1:05 pm", 2025).date() == date(2026, 1, 2)
     assert scrape.parse_timestamp("Sep 9, 12:30 am", 2025).hour == 0
+
+
+def test_clean_cookies_tolerates_pasted_quotes_and_prefix():
+    assert scrape.clean_cookies("'A=1; B=2'\n") == "A=1; B=2"
+    assert scrape.clean_cookies("Cookie: A=1; B=2") == "A=1; B=2"
+    assert scrape.clean_cookies("-b 'A=1'") == "A=1"

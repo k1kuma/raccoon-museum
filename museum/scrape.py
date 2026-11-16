@@ -671,8 +671,15 @@ class SeasonScraper:
             db.mark_fetched(conn, f"tx:{s}:final")
 
 
+def clean_cookies(raw: str) -> str:
+    """Accept the cookie string as pasted: tolerate surrounding quotes, a `-b`/`Cookie:` prefix and newlines."""
+    value = " ".join(raw.split())
+    value = re.sub(r"^(?:-b\s+|cookie:\s*)", "", value, flags=re.I).strip().strip("'\"").strip()
+    return value
+
+
 def run(args) -> int:
-    cookies = os.environ.get("YAHOO_COOKIES", "").strip()
+    cookies = clean_cookies(os.environ.get("YAHOO_COOKIES", ""))
     if not cookies:
         log.error("YAHOO_COOKIES is not set. See README → 'Scraping with browser cookies'.")
         return 1
