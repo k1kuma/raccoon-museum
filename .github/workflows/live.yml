@@ -1,0 +1,126 @@
+name: Live scores
+
+# Every 15 minutes during NFL game windows: read only the current week's scoreboard (1 Yahoo request),
+# rebuild and redeploy. Nothing is committed — live scores live only in the deployed site, and records,
+# streaks and standings keep using final weeks from data/league.sqlite (committed by the Tuesday run).
+#
+# Cron is UTC, so the schedules below cover both EDT (UTC-4) and EST (UTC-5); the "Game window?" step
+# then checks the actual America/New_York time and skips everything outside the windows.
+on:
+  schedule:
+    - cron: "*/15 16-23 * * 0"      # Sunday afternoon/evening
+    - cron: "*/15 0-5 * * 1"        # Sunday night (Monday UTC)
+    - cron: "*/15 0-5 * * 2"        # Monday night (Tuesday UTC)
+    - cron: "*/15 0-5 * * 5"        # Thursday night (Friday UTC)
+    - cron: "*/15 16-23 * 11 4"     # Thanksgiving afternoon
+    - cron: "*/15 17-23 * 12,1 6"   # late-season Saturdays
+    - cron: "*/15 0-5 * 12,1 0"     # late-season Saturday nights (Sunday UTC)
+    - cron: "*/15 17-23 25 12 *"    # Christmas Day
+    - cron: "*/15 0-5 26 12 *"      # Christmas night
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Shared with "Update & deploy museum" so a live deploy never races the Tuesday data commit.
+concurrency:
+  group: museum-update
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Game window?
+        id: window
+        shell: python
+        run: |
+          import os
+          from datetime import datetime, timedelta
+          from zoneinfo import ZoneInfo
+
+          now = datetime.now(ZoneInfo("America/New_York"))
+          # Treat 00:00-00:29 as the tail of the previous evening so the final whistle is caught.
+          day = now - timedelta(minutes=30) if now.hour == 0 and now.minute < 30 else now
+          mins = (now - day.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds() / 60
+          dow = day.weekday()  # Mon=0 … Sun=6
+          thanksgiving = day.month == 11 and dow == 3 and 22 <= day.day <= 28
+          windows = []
+          if dow == 6 or (dow == 5 and day.month in (12, 1)) or (day.month, day.day) == (12, 25):
+              windows.append((12 * 60 + 45, 24 * 60 + 30))
+          if thanksgiving:
+              windows.append((12 * 60 + 15, 24 * 60 + 30))
+          if dow in (0, 3):
+              windows.append((20 * 60, 24 * 60 + 30))
+          live = any(a <= mins < b for a, b in windows) or os.environ["EVENT"] == "workflow_dispatch"
+          print(f"{now:%a %Y-%m-%d %H:%M} ET → {'in' if live else 'outside'} a game window")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"live={str(live).lower()}\n")
+        env:
+          EVENT: ${{ github.event_name }}
+
+      - uses: actions/checkout@v4
+        if: steps.window.outputs.live == 'true'
+
+      - uses: actions/setup-python@v5
+        if: steps.window.outputs.live == 'true'
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - if: steps.window.outputs.live == 'true'
+        run: pip install -r requirements.txt
+
+      # Fails the job (so nothing is deployed and the live site keeps its last good build) when cookies expire.
+      - name: Scrape live scoreboard
+        if: steps.window.outputs.live == 'true'
+        env:
+          YAHOO_COOKIES: ${{ secrets.YAHOO_COOKIES }}
+          YAHOO_SEASONS: ${{ vars.YAHOO_SEASONS }}
+        run: |
+          python -m museum scrape --live --delay 0 || {
+            echo "::error::Live scrape failed — if the log mentions the login page, refresh the YAHOO_COOKIES secret (README → Scraping with browser cookies). The site was not redeployed."
+            exit 1
+          }
+
+      - if: steps.window.outputs.live == 'true'
+        run: python -m museum stats
+
+      - uses: actions/setup-node@v4
+        if: steps.window.outputs.live == 'true'
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Build site
+        if: steps.window.outputs.live == 'true'
+        working-directory: site
+        run: |
+          npm ci
+          npm run build
+
+      - uses: actions/configure-pages@v5
+        if: steps.window.outputs.live == 'true'
+
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.window.outputs.live == 'true'
+        with:
+          path: site/dist
+
+    outputs:
+      live: ${{ steps.window.outputs.live }}
+
+  deploy:
+    needs: build
+    if: needs.build.outputs.live == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -740,8 +740,36 @@ class Museum:
                            "managers": len(self.managers), "trades": len({t["transaction_key"] for t in self.txs
                                                                          if t["type"] == "trade"})}}
 
+    def live_board(self, live: dict | None) -> dict | None:
+        """In-progress week from `scrape --live`. Display-only: it never feeds records, streaks or standings."""
+        if not live or live.get("season") != self.latest["season"] or live.get("week", 0) <= self.latest["week"]:
+            return None  # missing, or already final in the database
+        try:
+            fetched = datetime.fromisoformat(live["fetchedAt"])
+        except (KeyError, ValueError):
+            return None
+        if (datetime.now(timezone.utc) - fetched).days >= 7:
+            return None
+        games = []
+        for g in live.get("games", []):
+            sides = [{"manager": self.mgr(t["teamKey"]), "team": self.teams.get(t["teamKey"], {}).get("name", ""),
+                      "points": t["points"], "projected": t["projected"]} for t in g["teams"]]
+            if len(sides) != 2:
+                continue
+            a, b = sides
+            lead = "a" if a["points"] > b["points"] else "b" if b["points"] > a["points"] else None
+            proj = None
+            if a["projected"] is not None and b["projected"] is not None and a["projected"] != b["projected"]:
+                proj = "a" if a["projected"] > b["projected"] else "b"
+            games.append({"label": g.get("label", ""), "a": a, "b": b, "leader": lead, "projectedWinner": proj})
+        if not games:
+            return None
+        started = any(g[s]["points"] for g in games for s in ("a", "b"))
+        return {"season": live["season"], "week": live["week"], "final": bool(live.get("final")),
+                "started": started, "updatedAt": live["fetchedAt"], "games": games}
+
     # ---------- build ----------
-    def build(self) -> dict[str, object]:
+    def build(self, live: dict | None = None) -> dict[str, object]:
         bench = self.bench_rows()
         drafts = self.draft_values()
         trades = self.trades()
@@ -752,11 +780,13 @@ class Museum:
         unlucky = next(c for c in shame if c["slug"] == "unlucky-losses")
         managers = self.manager_pages(bench, drafts, trades, h2h, unlucky, active)
         lobby = self.lobby({"records": records, "shame": shame}, bench, active, h2h)
+        lobby["live"] = self.live_board(live)
         latest_season = self.seasons.get(self.latest["season"], {})
         meta = {
             "leagueName": config.LEAGUE_NAME, "leagueUrl": config.LEAGUE_URL, "isSample": self.is_sample,
             "latest": self.latest, "latestFinished": bool(latest_season.get("is_finished")),
             "generatedAt": datetime.now(timezone.utc).isoformat(timespec="minutes"),
+            "liveUpdatedAt": lobby["live"]["updatedAt"] if lobby["live"] else None,
             "seasons": sorted(self.seasons, reverse=True),
             "managers": [{"id": m["id"], "name": m["name"], "color": m["color"], "initials": m["initials"],
                           "active": m["active"]} for m in managers],
@@ -766,11 +796,18 @@ class Museum:
                 "rivalries": h2h, "champions": self.champions(), "archives": self.archives(drafts, trades)}
 
 
-def build(db_path: Path, out_dir: Path) -> None:
+def build(db_path: Path, out_dir: Path, live_path: Path | None = None) -> None:
+    live_path = live_path or config.LIVE_JSON
+    live = None
+    if live_path.exists():
+        try:
+            live = json.loads(live_path.read_text())
+        except ValueError:
+            live = None
     conn = db.connect(db_path)
     is_sample = db.get_meta(conn, "is_sample") == "1"
     cfg_path = config.DATA_DIR / ("sample_managers.yaml" if is_sample else "managers.yaml")
     museum = Museum(conn, load_config(cfg_path))
     out_dir.mkdir(parents=True, exist_ok=True)
-    for name, payload in museum.build().items():
+    for name, payload in museum.build(live).items():
         (out_dir / f"{name}.json").write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))

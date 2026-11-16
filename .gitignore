@@ -11,6 +11,7 @@ __pycache__/
 
 # generated
 data/sample.sqlite
+data/live.json
 site/src/data/*.json
 site/node_modules/
 site/dist/

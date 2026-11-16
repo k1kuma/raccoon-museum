@@ -723,11 +723,47 @@ def backfill_positions(conn) -> None:
                          (known[key], key))
 
 
+def live_snapshot(html: str, season: int, lid: str) -> dict:
+    """The current week's scoreboard as a small JSON payload (scores so far + Yahoo projections)."""
+    board = parse_scoreboard(html, lid)
+    if board.week is None or not board.games:
+        raise ScrapeError("Couldn't find this week's scoreboard on the league home page — layout may have changed.")
+    key = lambda tid: f"{season}.l.{lid}.t.{tid}"  # noqa: E731
+    return {
+        "season": season, "week": board.week, "final": board.final,
+        "fetchedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "games": [{"label": g["label"], "teams": [
+            {"teamKey": key(tid), "points": pts, "projected": proj}
+            for tid, pts, proj in zip(g["teams"], g["points"], g["projected"])]} for g in board.games],
+    }
+
+
+def run_live(cookies: str, args) -> int:
+    seasons = parse_seasons(args.seasons)
+    season = max((y for y, lid in seasons.items() if lid == args.league_id), default=None)
+    if season is None:
+        log.error("Current league id %s isn't in the configured seasons.", args.league_id)
+        return 1
+    f = Fetcher(cookies, delay=args.delay, deadline=time.time() + args.time_budget * 60)
+    try:
+        snap = live_snapshot(f.get(f"/f1/{args.league_id}"), season, args.league_id)
+    except ScrapeError as exc:  # includes CookiesExpired
+        log.error("%s", exc)
+        return 1
+    out = getattr(args, "live_out", None) or config.LIVE_JSON
+    out.write_text(json.dumps(snap, ensure_ascii=False))
+    log.info("Live: %s week %s, %s games, final=%s → %s", season, snap["week"], len(snap["games"]),
+             snap["final"], out)
+    return 0
+
+
 def run(args) -> int:
     cookies = clean_cookies(os.environ.get("YAHOO_COOKIES", ""))
     if not cookies:
         log.error("YAHOO_COOKIES is not set. See README → 'Scraping with browser cookies'.")
         return 1
+    if getattr(args, "live", False):
+        return run_live(cookies, args)
     seasons = parse_seasons(args.seasons)
     current_lid = args.league_id
     if not seasons:

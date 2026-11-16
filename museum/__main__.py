@@ -32,6 +32,9 @@ def main(argv: list[str] | None = None) -> int:
     p_scrape.add_argument("--season", type=int, action="append", help="only scrape these season(s)")
     p_scrape.add_argument("--time-budget", type=float, default=300, help="minutes before stopping gracefully")
     p_scrape.add_argument("--delay", type=float, default=2.0, help="seconds between page requests")
+    p_scrape.add_argument("--live", action="store_true",
+                          help="only read the current week's scoreboard (1 request) into data/live.json; "
+                               "the database is not touched")
 
     p_stats = sub.add_parser("stats", help="compute stats JSON for the site")
     p_stats.add_argument("--db", type=Path, help="defaults to league.sqlite if present, else sample.sqlite")

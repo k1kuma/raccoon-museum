@@ -45,6 +45,13 @@ export function fmt(n: number | null | undefined, digits = 2) {
 
 export const latestLabel = `Week ${meta.latest.week}, ${meta.latest.season}`;
 
+/** e.g. "Sun 3:45 PM ET" — live scrapes run on a schedule in UTC; the league thinks in Eastern time. */
+export function etTime(iso: string | null | undefined) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' }) + ' ET';
+}
+
 export function ordinal(n: number) {
   const s = ['th', 'st', 'nd', 'rd'];
   const v = n % 100;

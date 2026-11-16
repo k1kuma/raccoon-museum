@@ -59,6 +59,33 @@ def test_consolation_games_flagged_as_playoffs_dont_count_as_playoffs(tmp_path):
     assert record("after") == record("before")
 
 
+
+def test_live_week_shows_in_lobby_but_never_touches_records(tmp_path):
+    import sqlite3
+    from datetime import datetime, timezone
+    db_path = sample.generate(tmp_path / "s.sqlite", today=date(2026, 11, 14))
+    with sqlite3.connect(db_path) as conn:
+        pairs = conn.execute("SELECT team_key, opponent_key FROM matchups WHERE season=2026 AND week=9 "
+                             "AND team_key < opponent_key").fetchall()
+    live = {"season": 2026, "week": 10, "final": False,
+            "fetchedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "games": [{"label": "", "teams": [{"teamKey": a, "points": 999.0, "projected": 1000.0},
+                                              {"teamKey": b, "points": 1.0, "projected": 90.0}]} for a, b in pairs]}
+    live_path = tmp_path / "live.json"
+    live_path.write_text(json.dumps(live))
+    stats.build(db_path, tmp_path / "base", live_path=tmp_path / "missing.json")
+    stats.build(db_path, tmp_path / "live", live_path=live_path)
+    read = lambda d, f: json.loads((tmp_path / d / f).read_text())  # noqa: E731
+    board = read("live", "lobby.json")["live"]
+    assert board["week"] == 10 and not board["final"] and len(board["games"]) == len(pairs)
+    assert board["games"][0]["leader"] == "a" and read("live", "meta.json")["liveUpdatedAt"]
+    for f in ("records.json", "shame.json", "managers.json"):
+        assert read("live", f) == read("base", f), f
+    live["week"] = 9  # already final in the database -> ignored
+    live_path.write_text(json.dumps(live))
+    stats.build(db_path, tmp_path / "stale", live_path=live_path)
+    assert read("stale", "lobby.json")["live"] is None
+
 # --- web scraper parsers (synthetic HTML mirroring Yahoo's markup) ---
 
 from museum import scrape  # noqa: E402

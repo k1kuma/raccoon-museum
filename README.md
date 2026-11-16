@@ -2,13 +2,13 @@
 
 A public, static museum for the Yahoo Fantasy Football league
 [City Slickin' Raccoons (705220)](https://football.fantasysports.yahoo.com/f1/705220).
-It updates itself every Tuesday morning during the season.
+It updates itself every Tuesday morning during the season, and shows live scores during NFL games.
 
 **Live site:** https://k1kuma.github.io/raccoon-museum/
 
 | Wing | What's on display |
 | --- | --- |
-| **Lobby** | This week's headlines, records broken, active streaks, "on this week in history", standings, fiercest rivalries, lore |
+| **Lobby** | Live scoreboard on game days, this week's headlines, records broken, active streaks, "on this week in history", standings, fiercest rivalries, lore |
 | **Hall of Champions** | Yearly title banners with the podium, plus the trophy case |
 | **Record Book** | Highest and lowest scores, blowouts, closest games, win and loss streaks, playoff explosions, best seasons |
 | **Manager Exhibits** | One page per manager: career record, titles, best and worst picks and trades, head-to-head table |
@@ -46,6 +46,20 @@ Yahoo Fantasy API ──yfpy──▶ data/league.sqlite ──museum stats─�
   2. Commits `data/league.sqlite`.
   3. Recomputes the stats.
   4. Builds and deploys to Pages.
+
+* `.github/workflows/live.yml` shows **live scores** in the Lobby. It runs every 15 minutes during NFL game windows (Eastern time):
+  * Sunday from 12:45 PM to midnight
+  * Monday and Thursday from 8 PM to midnight
+  * Thanksgiving afternoon
+  * Saturdays in December and January
+  * Christmas Day
+
+  The cron schedule is in UTC and covers both EDT and EST, and the first step checks the real `America/New_York` time. Each run makes one Yahoo request (`python -m museum scrape --live`), which reads the current week's scoreboard into a gitignored `data/live.json`. The site is then rebuilt and redeployed.
+  * Nothing is committed, so the repo doesn't grow every 15 minutes.
+  * Live scores appear only in the Lobby's **Live** panel. Records, streaks and standings use final weeks from the database, which only the Tuesday run updates.
+  * If the cookies have expired, the run fails before deploying, so the site keeps its last good build.
+
+  Both workflows share a concurrency group, so a live deploy never overlaps the Tuesday run. You can trigger a live refresh at any time with `gh workflow run live.yml`.
 
 **Sample data:** until `data/league.sqlite` exists, the site is built from a generated sample league (`python -m museum sample`). A banner on the site says so. The first successful Yahoo ingest swaps it out automatically.
 
@@ -161,5 +175,5 @@ museum/            Python package: ingest (yfpy), stats, sample generator, OAuth
 scripts/auth.py    One-time Yahoo OAuth helper
 data/              league.sqlite (committed once ingested), managers.yaml
 site/              Astro site (pages in site/src/pages)
-.github/workflows  update.yml (weekly ingest + deploy), ci.yml (PR checks)
+.github/workflows  update.yml (weekly ingest + deploy), live.yml (game-day live scores), ci.yml (PR checks)
 ```

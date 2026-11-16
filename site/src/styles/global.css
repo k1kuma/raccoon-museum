@@ -205,3 +205,14 @@ summary { cursor: pointer; font-weight: 600; }
 
 .toast { position: fixed; left: 50%; bottom: 1.5rem; transform: translate(-50%, 200%); opacity: 0; visibility: hidden; background: var(--wood); color: #fff; padding: .6rem 1rem; border-radius: 999px; transition: transform .25s; z-index: 20; }
 .toast.show { transform: translate(-50%, 0); opacity: 1; visibility: visible; }
+
+/* Live scoreboard (Lobby) */
+.live-note { margin: .25rem 0 .75rem; font-size: .85rem; }
+.live-games { list-style: none; padding: 0; margin: 0; display: grid; gap: .6rem; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); }
+.live-game { border: 1px solid var(--line); border-radius: var(--radius); padding: .5rem .65rem; }
+.live-game .kicker { display: block; margin-bottom: .2rem; }
+.live-side { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 0 .5rem; padding: .15rem 0; }
+.live-who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live-pts { font-weight: 700; font-variant-numeric: tabular-nums; }
+.live-proj { grid-column: 1 / -1; font-size: .75rem; }
+.live-side.leading .live-pts { color: var(--green); }

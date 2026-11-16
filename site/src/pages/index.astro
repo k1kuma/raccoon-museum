@@ -2,7 +2,8 @@
 import Base from '../layouts/Base.astro';
 import Chip from '../components/Chip.astro';
 import ShareButton from '../components/ShareButton.astro';
-import { meta, lobby, url, fmt, name, latestLabel, champions } from '../lib/data';
+import { meta, lobby, url, fmt, name, latestLabel, champions, etTime } from '../lib/data';
+const live = lobby.live;
 const t = lobby.totals;
 const reigning = champions.banners[0];
 ---
@@ -19,6 +20,42 @@ const reigning = champions.banners[0];
       </p>
     )}
   </section>
+
+  {live && (
+    <section class="panel" id="live">
+      <div class="panel-head">
+        <h2>
+          Week {live.week} scoreboard
+          {live.final
+            ? <span class="badge">Final · official Tuesday</span>
+            : live.started
+              ? <span class="badge badge-live">● Live</span>
+              : <span class="badge">Upcoming</span>}
+        </h2>
+        <ShareButton href={url('#live')} />
+      </div>
+      <p class="muted live-note">
+        Last updated {etTime(live.updatedAt)}. {live.final ? 'Scores are final but not yet in the record books.' : live.started ? 'Scores in progress — not final, and they don’t count toward records until the week is over.' : 'Kickoff hasn’t happened yet; Yahoo projections shown.'}
+      </p>
+      <ul class="live-games">
+        {live.games.map((g: any) => (
+          <li data-manager={g.a.manager} class="live-game">
+            {g.label && <span class="kicker">{g.label}</span>}
+            {['a', 'b'].map((side) => {
+              const t = g[side];
+              return (
+                <div class:list={['live-side', { leading: g.leader === side }]} data-manager={t.manager}>
+                  <span class="live-who"><Chip id={t.manager} small /><span class="team-name">{t.team}</span></span>
+                  <span class="live-pts num">{fmt(t.points)}</span>
+                  <span class="live-proj muted num">{t.projected != null ? `proj ${fmt(t.projected)}` : ''}{g.projectedWinner === side ? ' ▲' : ''}</span>
+                </div>
+              );
+            })}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
 
   <section class="panel" id="headlines">
     <div class="panel-head">

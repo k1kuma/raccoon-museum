@@ -10,6 +10,8 @@ LEAGUE_DB = DATA_DIR / "league.sqlite"
 SAMPLE_DB = DATA_DIR / "sample.sqlite"
 MANAGERS_YAML = DATA_DIR / "managers.yaml"
 STATS_OUT = ROOT / "site" / "src" / "data"
+# In-progress week from `scrape --live`; deployed with the site but never committed.
+LIVE_JSON = DATA_DIR / "live.json"
 
 LEAGUE_ID = os.environ.get("YAHOO_LEAGUE_ID", "705220")
 LEAGUE_NAME = "City Slickin' Raccoons"

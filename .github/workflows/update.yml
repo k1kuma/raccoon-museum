@@ -90,6 +90,15 @@ jobs:
             python -m museum sample
           fi
 
+      # Best effort (1 request): keeps the Lobby's live/upcoming scoreboard on non-live deploys too.
+      - name: Live scoreboard snapshot
+        if: env.HAS_YAHOO_COOKIES == 'true'
+        continue-on-error: true
+        env:
+          YAHOO_COOKIES: ${{ secrets.YAHOO_COOKIES }}
+          YAHOO_SEASONS: ${{ vars.YAHOO_SEASONS }}
+        run: python -m museum scrape --live --delay 0
+
       - run: python -m museum stats
 
       - uses: actions/setup-node@v4
