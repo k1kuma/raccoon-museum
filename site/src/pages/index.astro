@@ -6,6 +6,7 @@ import { meta, lobby, url, fmt, name, latestLabel, champions, etTime } from '../
 const live = lobby.live;
 const t = lobby.totals;
 const reigning = champions.banners[0];
+import SegmentLabel from '../components/SegmentLabel.astro';
 ---
 <Base title={meta.leagueName} description={`Headlines, records and lore from ${meta.leagueName}, updated through ${latestLabel}.`} wing="lobby">
   <section class="hero">
@@ -81,7 +82,7 @@ const reigning = champions.banners[0];
         {lobby.recordsBroken.map((r: any) => (
           <li data-manager={r.manager}>
             <span class="badge badge-new">New #{r.rank}</span>
-            <a href={url(`${r.section}/${r.slug}#no-${r.rank}`)}>{r.title}</a>: {r.caption}
+            <a href={url(`${r.section}/${r.slug}#no-${r.rank}`)}>{r.title}</a> <SegmentLabel segment={r.segment} />: {r.caption}
           </li>
         ))}
       </ul>
@@ -90,7 +91,7 @@ const reigning = champions.banners[0];
 
   <div class="grid-2">
     <section class="panel" id="streaks">
-      <div class="panel-head"><h2>Streak watch</h2><ShareButton href={url('#streaks')} /></div>
+      <div class="panel-head"><h2>Streak watch <SegmentLabel segment="regular" /></h2><ShareButton href={url('#streaks')} /></div>
       {lobby.streaks.length === 0 ? <p class="empty">No active streaks of note.</p> : (
         <ul class="headlines">
           {lobby.streaks.map((s: any) => (
@@ -112,7 +113,7 @@ const reigning = champions.banners[0];
 
   <div class="grid-2">
     <section class="panel" id="standings">
-      <div class="panel-head"><h2>{meta.latest.season} standings</h2><ShareButton href={url('#standings')} /></div>
+      <div class="panel-head"><h2>{meta.latest.season} standings <SegmentLabel segment="regular" /></h2><ShareButton href={url('#standings')} /></div>
       <div class="table-wrap">
         <table>
           <thead><tr><th>#</th><th>Manager</th><th>Record</th><th class="num">PF</th></tr></thead>
@@ -131,7 +132,7 @@ const reigning = champions.banners[0];
     </section>
 
     <section class="panel" id="rivalries">
-      <div class="panel-head"><h2>Fiercest rivalries</h2><ShareButton href={url('#rivalries')} /></div>
+      <div class="panel-head"><h2>Fiercest rivalries <SegmentLabel segment="regular" /></h2><ShareButton href={url('#rivalries')} /></div>
       <ul class="headlines">
         {lobby.fiercestRivalries.map((r: any) => (
           <li data-pair={r.pair}>

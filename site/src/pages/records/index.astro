@@ -1,6 +1,8 @@
 ---
 import Base from '../../layouts/Base.astro';
 import CategoryCard from '../../components/CategoryCard.astro';
+import SegmentToggle from '../../components/SegmentToggle.astro';
+import { SEGMENTS } from '../../lib/data';
 import { records } from '../../lib/data';
 ---
 <Base title="Record Book" description="Every record, ranked. Tap any exhibit to see the full leaderboard — every entry has its own shareable link." wing="records">
@@ -8,7 +10,12 @@ import { records } from '../../lib/data';
     <h1>Record Book</h1>
     <p class="lede">Every record, ranked. Tap any exhibit to see the full leaderboard — every entry has its own shareable link.</p>
   </header>
-  <div class="wings-grid">
-    {records.map((cat) => <CategoryCard cat={cat} section="records" />)}
+  <div data-segment-root data-segment="regular">
+    <SegmentToggle />
+    <div class="wings-grid">
+      {records.flatMap((cat) => cat.segments
+        ? SEGMENTS.map((seg) => <CategoryCard cat={cat} section="records" segment={seg} />)
+        : [<CategoryCard cat={cat} section="records" />])}
+    </div>
   </div>
 </Base>

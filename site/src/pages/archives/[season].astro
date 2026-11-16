@@ -3,7 +3,8 @@ import Base from '../../layouts/Base.astro';
 import Chip from '../../components/Chip.astro';
 import Avatar from '../../components/Avatar.astro';
 import ShareButton from '../../components/ShareButton.astro';
-import { archives, url, fmt, name, recordStr, mgr } from '../../lib/data';
+import SegmentLabel from '../../components/SegmentLabel.astro';
+import { archives, url, fmt, name, recordStr, ordinal } from '../../lib/data';
 
 export function getStaticPaths() {
   return archives.map((s) => ({ params: { season: String(s.season) }, props: { s } }));
@@ -28,20 +29,21 @@ const older = archives[idx + 1];
   </header>
 
   <section class="panel" id="standings">
-    <div class="panel-head"><h2>{s.finished ? 'Final standings' : `Standings through Week ${s.lastCompletedWeek}`}</h2><ShareButton href={url(`${path}#standings`)} /></div>
+    <div class="panel-head"><h2>{s.finished ? 'Regular-season standings' : `Standings through Week ${s.lastCompletedWeek}`}</h2><ShareButton href={url(`${path}#standings`)} /></div>
+    <div class="seg-row"><SegmentLabel segment="regular" /><span class="muted">Record, points and seed are regular season only. Final finish is after the playoffs and consolation bracket.</span></div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>#</th><th>Manager</th><th>Team</th><th>Record</th><th class="num">PF</th><th class="num">PA</th><th>Seed</th><th>Moves</th><th>Draft</th></tr></thead>
+        <thead><tr><th>Seed</th><th>Manager</th><th>Team</th><th>Record</th><th class="num">PF</th><th class="num">PA</th><th>Final finish</th><th>Moves</th><th>Draft</th></tr></thead>
         <tbody>
-          {s.standings.map((t: any) => (
+          {s.standings.map((t: any, i: number) => (
             <tr data-manager={t.manager}>
-              <td>{s.finished && t.rank === 1 ? '🏆' : t.rank}</td>
+              <td>{t.seed ?? i + 1}</td>
               <td><Chip id={t.manager} small season={s.season} /></td>
               <td>{t.team}</td>
               <td>{recordStr(t.wins, t.losses, t.ties)}</td>
               <td class="num">{fmt(t.pointsFor)}</td>
               <td class="num">{fmt(t.pointsAgainst)}</td>
-              <td>{t.seed ?? '—'}</td>
+              <td>{t.finalRank ? (t.finalRank === 1 ? '🏆 1st' : ordinal(t.finalRank)) : '—'}</td>
               <td>{t.moves ?? '—'}{t.trades ? ` / ${t.trades}T` : ''}</td>
               <td>{t.draftGrade ?? '—'}</td>
             </tr>
@@ -53,6 +55,7 @@ const older = archives[idx + 1];
 
   <section class="panel" id="bracket">
     <div class="panel-head"><h2>Playoff bracket</h2><ShareButton href={url(`${path}#bracket`)} /></div>
+    <div class="seg-row"><SegmentLabel segment="playoffs" /><span class="muted">Winners' bracket only; consolation games are in the weekly results.</span></div>
     {s.bracket.length === 0 ? <p class="empty">The playoffs haven't started yet.</p> : (
       <div class="bracket">
         {s.bracket.map((round: any) => (
@@ -113,14 +116,15 @@ const older = archives[idx + 1];
     <div class="panel-head"><h2>Weekly results</h2><ShareButton href={url(`${path}#results`)} /></div>
     {s.weeks.map((w: any, i: number) => (
       <details open={i === 0} id={`week-${w.week}`}>
-        <summary>Week {w.week}{w.games.some((g: any) => g.playoffs) ? ' · Playoffs' : ''}</summary>
+        <summary>Week {w.week}{w.games.some((g: any) => g.type !== 'regular') ? ' · Playoffs & consolation' : ''}</summary>
         <ul class="results">
           {w.games.map((g: any) => (
-            <li class:list={{ consolation: g.consolation }}>
+            <li class:list={{ consolation: g.consolation }} data-type={g.type}>
               <span class:list={['r-side', { win: g.aPoints > g.bPoints }]} data-manager={g.a}>{name(g.a)} <span class="num">{fmt(g.aPoints)}</span></span>
               <span class="muted">–</span>
               <span class:list={['r-side', { win: g.bPoints > g.aPoints }]} data-manager={g.b}><span class="num">{fmt(g.bPoints)}</span> {name(g.b)}</span>
-              {g.consolation && <span class="badge">consolation</span>}
+              {g.type !== 'regular' && <SegmentLabel segment={g.type === 'playoff' ? 'playoffs' : 'consolation'} />}
+              {g.type !== 'regular' && g.label && <span class="game-label">{g.label}</span>}
             </li>
           ))}
         </ul>

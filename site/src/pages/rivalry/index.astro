@@ -3,7 +3,7 @@ import Base from '../../layouts/Base.astro';
 import { meta, rivalries, url, name } from '../../lib/data';
 const sorted = [...meta.managers].sort((a, b) => a.name.localeCompare(b.name));
 const keys = Object.keys(rivalries);
-const top = Object.entries(rivalries).sort((a: any, b: any) => b[1].meetings - a[1].meetings).slice(0, 12);
+const top = Object.entries(rivalries).sort((a: any, b: any) => b[1].totalMeetings - a[1].totalMeetings).slice(0, 12);
 ---
 <Base title="Rivalry Room" description="Pick any two managers and relive their head-to-head history." wing="rivalry">
   <header class="page-head">

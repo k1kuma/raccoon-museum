@@ -38,10 +38,27 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 export function url(path = '') {
   const clean = path.replace(/^\//, '');
   if (!clean) return base;
-  const [p, hash] = clean.split('#');
+  const [rest, hash] = clean.split('#');
+  const [p, query] = rest.split('?');
   const withSlash = p === '' || p.endsWith('/') || p.includes('.') ? p : `${p}/`;
-  return base + withSlash + (hash ? `#${hash}` : '');
+  return base + withSlash + (query ? `?${query}` : '') + (hash ? `#${hash}` : '');
 }
+
+/** Regular season is the default everywhere; playoffs = winners' bracket; consolation is its own thing. */
+export const SEGMENTS = ['regular', 'playoffs', 'all'] as const;
+const SEGMENT_NAMES: Record<string, [string, string]> = {
+  regular: ['Regular season', 'Regular'],
+  playoffs: ['Playoffs', 'Playoffs'],
+  all: ['Regular + playoffs', 'All'],
+  consolation: ['Consolation', 'Consolation'],
+  season: ['Full season', 'Full season'],
+};
+export const segmentName = (s: string, short = false) => (SEGMENT_NAMES[s] ?? [s, s])[short ? 1 : 0];
+/** Which toggle states a fixed-segment card should be visible in. */
+export const visibleIn = (s: string) =>
+  s === 'regular' ? 'regular all' : s === 'playoffs' ? 'playoffs all' : 'regular playoffs all';
+/** URL suffix for a non-default segment. */
+export const segQuery = (s: string) => (s && s !== 'regular' ? `?segment=${s}` : '');
 
 export const pairKey = (a: string, b: string) => [a, b].sort().join('--');
 

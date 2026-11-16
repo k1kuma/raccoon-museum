@@ -1,6 +1,8 @@
 ---
 import Base from '../../layouts/Base.astro';
 import CategoryCard from '../../components/CategoryCard.astro';
+import SegmentToggle from '../../components/SegmentToggle.astro';
+import { SEGMENTS } from '../../lib/data';
 import { shame } from '../../lib/data';
 ---
 <Base title="Hall of Shame" description="The bench blunders, heartbreaks and draft busts we will never let anyone forget." wing="shame">
@@ -8,7 +10,12 @@ import { shame } from '../../lib/data';
     <h1>Hall of Shame</h1>
     <p class="lede">The bench blunders, heartbreaks and draft busts we will never let anyone forget.</p>
   </header>
-  <div class="wings-grid">
-    {shame.map((cat) => <CategoryCard cat={cat} section="shame" />)}
+  <div data-segment-root data-segment="regular">
+    <SegmentToggle />
+    <div class="wings-grid">
+      {shame.flatMap((cat) => cat.segments
+        ? SEGMENTS.map((seg) => <CategoryCard cat={cat} section="shame" segment={seg} />)
+        : [<CategoryCard cat={cat} section="shame" />])}
+    </div>
   </div>
 </Base>

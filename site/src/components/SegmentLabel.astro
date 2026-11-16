@@ -1,0 +1,6 @@
+---
+import { segmentName } from '../lib/data';
+interface Props { segment?: string | null }
+const { segment } = Astro.props;
+---
+{segment && <span class={`seg seg-${segment}`}>{segmentName(segment)}</span>}

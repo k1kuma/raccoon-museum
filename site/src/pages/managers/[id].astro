@@ -3,6 +3,7 @@ import Base from '../../layouts/Base.astro';
 import Chip from '../../components/Chip.astro';
 import Avatar from '../../components/Avatar.astro';
 import ShareButton from '../../components/ShareButton.astro';
+import SegmentLabel from '../../components/SegmentLabel.astro';
 import { managers, url, fmt, ordinal } from '../../lib/data';
 
 export function getStaticPaths() {
@@ -25,15 +26,24 @@ const path = `managers/${m.id}`;
     </div>
   </header>
 
-  <section class="kpis" id="career">
+  <div class="kpi-group-head" id="career"><h2>Regular season</h2><SegmentLabel segment="regular" /></div>
+  <section class="kpis">
     <div class="kpi"><span class="kpi-v">{c.wins}-{c.losses}{c.ties ? `-${c.ties}` : ''}</span><span class="kpi-l">Career record ({(c.pct * 100).toFixed(1)}%)</span></div>
-    <div class="kpi"><span class="kpi-v">{'🏆'.repeat(m.titles.length) || '0'}</span><span class="kpi-l">Titles {m.titles.join(', ')}</span></div>
-    <div class="kpi"><span class="kpi-v">{c.playoffApps}</span><span class="kpi-l">Playoff trips ({c.playoffWins}-{c.playoffLosses})</span></div>
-    <div class="kpi"><span class="kpi-v">{c.bestFinish ? ordinal(c.bestFinish) : '—'}</span><span class="kpi-l">Best finish (avg {c.avgFinish ?? '—'})</span></div>
-    <div class="kpi"><span class="kpi-v">{fmt(c.pointsFor, 0)}</span><span class="kpi-l">Points for</span></div>
+    <div class="kpi"><span class="kpi-v">{c.allPlay.pct !== null ? `${c.allPlay.wins}-${c.allPlay.losses}${c.allPlay.ties ? `-${c.allPlay.ties}` : ''}` : '—'}</span><span class="kpi-l">All-play record{c.allPlay.pct !== null ? ` (${(c.allPlay.pct * 100).toFixed(1)}%)` : ''}</span></div>
+    <div class="kpi"><span class="kpi-v">{c.luck > 0 ? '+' : ''}{c.luck.toFixed(1)}</span><span class="kpi-l">Luck (wins vs all-play expected)</span></div>
+    <div class="kpi"><span class="kpi-v">{fmt(c.pointsFor, 0)}</span><span class="kpi-l">Points for ({c.regularPpg ? fmt(c.regularPpg, 1) : '—'} per game)</span></div>
     <div class="kpi"><span class="kpi-v">{fmt(c.benchPoints, 0)}</span><span class="kpi-l">Points left on bench ({c.benchCostWins} lost wins)</span></div>
-    <div class="kpi"><span class="kpi-v">{c.trades}</span><span class="kpi-l">Trades · {c.moves ?? 0} moves</span></div>
     <div class="kpi"><span class="kpi-v">{c.unluckyLosses}</span><span class="kpi-l">Losses with 2nd-best score</span></div>
+    <div class="kpi"><span class="kpi-v">{c.trades}</span><span class="kpi-l">Trades · {c.moves ?? 0} moves</span></div>
+  </section>
+  <div class="kpi-group-head" id="playoffs"><h2>Playoffs</h2><SegmentLabel segment="playoffs" /></div>
+  <section class="kpis">
+    <div class="kpi"><span class="kpi-v">{'🏆'.repeat(m.titles.length) || '0'}</span><span class="kpi-l">Titles {m.titles.join(', ')}</span></div>
+    <div class="kpi"><span class="kpi-v">{c.playoffWins}-{c.playoffLosses}</span><span class="kpi-l">Playoff record</span></div>
+    <div class="kpi"><span class="kpi-v">{c.playoffApps}</span><span class="kpi-l">Appearances{c.completedSeasons ? ` in ${c.completedSeasons} seasons (${Math.round((c.playoffRate ?? 0) * 100)}%)` : ''}</span></div>
+    <div class="kpi"><span class="kpi-v">{c.playoffByes}</span><span class="kpi-l">First-round byes</span></div>
+    <div class="kpi"><span class="kpi-v">{c.clutch !== null ? `${c.clutch > 0 ? '+' : ''}${fmt(c.clutch, 1)}` : '—'}</span><span class="kpi-l">Clutch score{c.playoffPpg ? ` (${fmt(c.playoffPpg, 1)} per playoff game)` : ''}</span></div>
+    <div class="kpi"><span class="kpi-v">{c.bestFinish ? ordinal(c.bestFinish) : '—'}</span><span class="kpi-l">Best final finish (avg {c.avgFinish ?? '—'})</span></div>
   </section>
 
   {m.streak && (
@@ -48,6 +58,7 @@ const path = `managers/${m.id}`;
     {m.highestScore && (
       <section class="panel" id="best-week">
         <div class="panel-head"><h2>Best week</h2><ShareButton href={url(`${path}#best-week`)} /></div>
+        <div class="seg-row"><SegmentLabel segment="regular" /></div>
         <p class="big">{fmt(m.highestScore.points)}</p>
         <p>{m.highestScore.label} vs <Chip id={m.highestScore.opponent} small /> ({m.highestScore.result} {fmt(m.highestScore.points)}–{fmt(m.highestScore.opponentPoints)})</p>
       </section>
@@ -55,6 +66,7 @@ const path = `managers/${m.id}`;
     {m.lowestScore && (
       <section class="panel" id="worst-week">
         <div class="panel-head"><h2>Worst week</h2><ShareButton href={url(`${path}#worst-week`)} /></div>
+        <div class="seg-row"><SegmentLabel segment="regular" /></div>
         <p class="big">{fmt(m.lowestScore.points)}</p>
         <p>{m.lowestScore.label} vs <Chip id={m.lowestScore.opponent} small /> ({m.lowestScore.result} {fmt(m.lowestScore.points)}–{fmt(m.lowestScore.opponentPoints)})</p>
       </section>
@@ -93,9 +105,10 @@ const path = `managers/${m.id}`;
 
   <section class="panel" id="seasons">
     <div class="panel-head"><h2>Season by season</h2><ShareButton href={url(`${path}#seasons`)} /></div>
+    <p class="muted">Record, points and seed: regular season. Playoffs: winners'-bracket games. Final finish includes the consolation bracket.</p>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Season</th><th>Team</th><th>Record</th><th class="num">PF</th><th class="num">PA</th><th>Finish</th></tr></thead>
+        <thead><tr><th>Season</th><th>Team</th><th>Record</th><th class="num">PF</th><th>Seed</th><th>Playoffs</th><th>Final finish</th></tr></thead>
         <tbody>
           {[...m.seasons].reverse().map((s: any) => (
             <tr>
@@ -103,8 +116,9 @@ const path = `managers/${m.id}`;
               <td>{s.team}</td>
               <td>{s.wins}-{s.losses}{s.ties ? `-${s.ties}` : ''}</td>
               <td class="num">{fmt(s.pointsFor)}</td>
-              <td class="num">{fmt(s.pointsAgainst)}</td>
-              <td>{s.finished ? (s.rank === 1 ? '🏆 Champion' : s.rank ? ordinal(s.rank) : '—') : 'In progress'}{s.madePlayoffs && s.rank !== 1 ? ' · playoffs' : ''}</td>
+              <td>{s.seed ?? '—'}</td>
+              <td>{s.playoffRecord ?? (s.madePlayoffs ? '—' : s.finished ? 'Missed' : '—')}{s.bye ? ' · bye' : ''}</td>
+              <td>{s.finished ? (s.rank === 1 ? '🏆 Champion' : s.rank ? ordinal(s.rank) : '—') : 'In progress'}</td>
             </tr>
           ))}
         </tbody>
@@ -116,13 +130,13 @@ const path = `managers/${m.id}`;
     <div class="panel-head"><h2>Head-to-head</h2><ShareButton href={url(`${path}#rivals`)} /></div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Opponent</th><th>Record</th><th>Games</th><th></th></tr></thead>
+        <thead><tr><th>Opponent</th><th>Regular season</th><th>Playoffs</th><th></th></tr></thead>
         <tbody>
           {m.rivals.map((r: any) => (
             <tr data-manager={r.opponent}>
               <td><Chip id={r.opponent} small /></td>
-              <td>{r.wins}-{r.losses}{r.ties ? `-${r.ties}` : ''}</td>
-              <td>{r.meetings}</td>
+              <td>{r.meetings ? `${r.wins}-${r.losses}${r.ties ? `-${r.ties}` : ''}` : '—'}</td>
+              <td>{r.playoffMeetings ? `${r.playoffWins}-${r.playoffLosses}` : '—'}</td>
               <td><a href={url(`rivalry/${r.pair}`)}>Rivalry →</a></td>
             </tr>
           ))}

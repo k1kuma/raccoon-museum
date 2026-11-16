@@ -274,3 +274,21 @@ table.draft tbody th, table.draft thead th:first-child { position: sticky; left:
   .brand-sub { font-size: .62rem; letter-spacing: .08em; }
   .whoami select { max-width: 7.5rem; }
 }
+
+/* segments: Regular season / Playoffs / Consolation */
+.seg { display: inline-block; font: 600 .68rem/1 var(--sans); letter-spacing: .04em; text-transform: uppercase; padding: .28em .5em; border-radius: 4px; border: 1px solid currentColor; vertical-align: middle; white-space: nowrap; color: #475569; }
+.seg-playoffs { color: #9a6700; }
+.seg-consolation { color: #7c3aed; }
+.seg-all { color: #0f766e; }
+.seg-season { color: #475569; }
+.seg-row { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin: .25rem 0; }
+.seg-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--paper); margin: .5rem 0 1rem; max-width: 100%; }
+.seg-toggle a { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 0 1rem; border-radius: 999px; text-decoration: none; color: inherit; font: 600 .9rem/1 var(--sans); }
+.seg-toggle a[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+@media (max-width: 400px) { .seg-toggle { display: flex; } .seg-toggle a { flex: 1; padding: 0 .5rem; } }
+[data-segment-root][data-segment="regular"] [data-seg]:not([data-seg~="regular"]),
+[data-segment-root][data-segment="playoffs"] [data-seg]:not([data-seg~="playoffs"]),
+[data-segment-root][data-segment="all"] [data-seg]:not([data-seg~="all"]) { display: none; }
+.kpi-group-head { display: flex; align-items: center; gap: .6rem; margin: 1.2rem 0 .4rem; }
+.kpi-group-head h2 { margin: 0; font-size: 1.1rem; }
+.seg-center { justify-content: center; }

@@ -2,22 +2,35 @@
 import Base from '../layouts/Base.astro';
 import StatEntry from './StatEntry.astro';
 import ShareButton from './ShareButton.astro';
-import { url } from '../lib/data';
+import SegmentLabel from './SegmentLabel.astro';
+import SegmentToggle from './SegmentToggle.astro';
+import { url, SEGMENTS } from '../lib/data';
 interface Props { cat: any; section: string; sectionTitle: string; siblings: any[] }
 const { cat, section, sectionTitle, siblings } = Astro.props;
 const pagePath = `${section}/${cat.slug}`;
 const top = cat.entries[0];
+const lists = cat.segments
+  ? SEGMENTS.map((s) => ({ segment: s, entries: s === 'regular' ? cat.entries : cat.segments[s] }))
+  : [{ segment: cat.segment, entries: cat.entries }];
 ---
 <Base title={cat.title} description={top ? top.caption : cat.blurb} wing={section}>
   <nav class="crumbs"><a href={url(section)}>{sectionTitle}</a> / <span>{cat.title}</span></nav>
-  <header class="page-head">
-    <h1>{cat.title}</h1>
-    <p class="lede">{cat.blurb}</p>
-    <ShareButton href={url(pagePath)} text={`${cat.title} — ${top?.caption ?? ''}`} label="Share this exhibit" />
-  </header>
-  {cat.entries.length === 0 && <p class="empty">Nothing on display yet.</p>}
-  <div class="stat-list">
-    {cat.entries.map((e: any) => <StatEntry entry={e} pagePath={pagePath} ranked={cat.ranked} />)}
+  <div data-segment-root data-segment="regular">
+    <header class="page-head">
+      <h1>{cat.title}</h1>
+      <p class="lede">{cat.blurb}</p>
+      {cat.segments ? <SegmentToggle /> : <div class="seg-row"><SegmentLabel segment={cat.segment} /></div>}
+      <ShareButton href={url(pagePath)} text={`${cat.title} — ${top?.caption ?? ''}`} label="Share this exhibit" />
+    </header>
+    {lists.map(({ segment, entries }) => (
+      <section data-seg={cat.segments ? segment : undefined}>
+        {cat.segments && <div class="seg-row"><SegmentLabel segment={segment} /></div>}
+        {entries.length === 0 && <p class="empty">Nothing on display yet.</p>}
+        <div class="stat-list">
+          {entries.map((e: any) => <StatEntry entry={e} pagePath={pagePath} ranked={cat.ranked} segment={cat.segments ? segment : 'regular'} />)}
+        </div>
+      </section>
+    ))}
   </div>
   <aside class="also">
     <h2>More in {sectionTitle}</h2>

@@ -63,6 +63,13 @@ Yahoo Fantasy API ──yfpy──▶ data/league.sqlite ──museum stats─�
 
 **Team logos:** the scheduled scrape reads each team's Yahoo logo from the standings and teams pages, and copies it into `site/public/logos/<season>/<team_id>-<hash>.<ext>`. A new file is downloaded only when the logo URL changes. The site never hotlinks Yahoo, so the logos keep working if Yahoo's URLs change. Each manager shows their latest logo across the site. Archives (and the Hall of Champions banners) show the logo from that season. Default Yahoo avatars, and missing logos, fall back to initials. Live runs never touch logos.
 
+**Regular season vs playoffs:** at stats time, every game gets exactly one type. Yahoo's own flags mark consolation games as playoff games too, so the type is worked out from the league settings and seeds instead:
+* `regular`: weeks before the playoff start week.
+* `playoff`: winners'-bracket games, where both teams are seeded within the number of playoff teams. This includes the 3rd- and 5th-place games.
+* `consolation`: every other game from the playoff start week on.
+
+Stats default to the regular season. That includes the Basement, standings, streaks, rivalry head-to-head and bench points. Consolation games only appear in the Hall of Shame's **Toilet Bowl** exhibit. The Record Book and Hall of Shame have a Regular / Playoffs / All toggle, which is kept in the URL as `?segment=`. Every stat card shows a segment label.
+
 **Sample data:** until `data/league.sqlite` exists, the site is built from a generated sample league (`python -m museum sample`). A banner on the site says so. The first successful Yahoo ingest swaps it out automatically.
 
 ## One-time setup (what you need to do)

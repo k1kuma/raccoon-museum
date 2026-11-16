@@ -122,6 +122,32 @@ const sortedManagers = [...meta.managers].sort((a, b) => a.name.localeCompare(b.
       }
       applyMe(stored);
 
+      // Regular / Playoffs / All toggle: state lives in ?segment= so shared links keep it.
+      const SEGS = ['regular', 'playoffs', 'all'];
+      function setSegment(seg: string, push: boolean) {
+        if (!SEGS.includes(seg)) seg = 'regular';
+        document.querySelectorAll<HTMLElement>('[data-segment-root]').forEach((el) => (el.dataset.segment = seg));
+        document.querySelectorAll<HTMLElement>('[data-seg-btn]').forEach((b) =>
+          b.setAttribute('aria-pressed', String(b.dataset.segBtn === seg)));
+        if (push) {
+          const u = new URL(location.href);
+          if (seg === 'regular') u.searchParams.delete('segment'); else u.searchParams.set('segment', seg);
+          u.hash = '';
+          history.replaceState(null, '', u.href);
+        }
+      }
+      if (document.querySelector('[data-segment-root]')) {
+        const fromHash = SEGS.find((s) => location.hash.startsWith(`#${s}-`));
+        setSegment(new URLSearchParams(location.search).get('segment') || fromHash || 'regular', false);
+        if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView();
+        document.addEventListener('click', (ev) => {
+          const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-seg-btn]');
+          if (!b) return;
+          ev.preventDefault();
+          setSegment(b.dataset.segBtn || 'regular', true);
+        });
+      }
+
       const toast = document.getElementById('toast');
       function showToast(msg: string) {
         if (!toast) return;

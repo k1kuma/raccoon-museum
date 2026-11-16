@@ -1,10 +1,11 @@
 ---
 import Chip from './Chip.astro';
 import ShareButton from './ShareButton.astro';
-import { url } from '../lib/data';
-interface Props { entry: any; pagePath: string; ranked?: boolean; compact?: boolean }
-const { entry, pagePath, ranked = true, compact = false } = Astro.props;
-const anchor = `no-${entry.rank}`;
+import { url, segQuery } from '../lib/data';
+interface Props { entry: any; pagePath: string; ranked?: boolean; compact?: boolean; segment?: string }
+const { entry, pagePath, ranked = true, compact = false, segment = 'regular' } = Astro.props;
+// Regular-season anchors stay `no-N` so older shared links keep working.
+const anchor = segment === 'regular' ? `no-${entry.rank}` : `${segment}-no-${entry.rank}`;
 ---
 <article class:list={['stat', { compact, 'is-new': entry.isNew }]} id={anchor} data-manager={entry.manager}>
   <div class="stat-head">
@@ -18,6 +19,6 @@ const anchor = `no-${entry.rank}`;
     <Chip id={entry.manager} small />
     {entry.opponent && <span class="vs">vs</span>}
     {entry.opponent && <Chip id={entry.opponent} small />}
-    {!compact && <ShareButton href={url(`${pagePath}#${anchor}`)} text={entry.caption} />}
+    {!compact && <ShareButton href={url(`${pagePath}${segQuery(segment)}#${anchor}`)} text={entry.caption} />}
   </div>
 </article>

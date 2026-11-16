@@ -1,0 +1,10 @@
+---
+import { SEGMENTS, segmentName } from '../lib/data';
+interface Props { label?: string }
+const { label = 'Show games from' } = Astro.props;
+---
+<div class="seg-toggle" role="group" aria-label={label}>
+  {SEGMENTS.map((s) => (
+    <a href={`?segment=${s}`} data-seg-btn={s} aria-pressed={s === 'regular' ? 'true' : 'false'}>{segmentName(s, true)}</a>
+  ))}
+</div>

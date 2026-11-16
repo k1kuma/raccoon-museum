@@ -47,17 +47,56 @@ def test_sample_to_stats_end_to_end(tmp_path):
     assert len(champions["banners"]) == 12  # 2014-2025 finished
 
 
-def test_consolation_games_flagged_as_playoffs_dont_count_as_playoffs(tmp_path):
+def test_game_type_comes_from_settings_and_seeds_not_yahoo_flags(tmp_path):
     import sqlite3
     db_path = sample.generate(tmp_path / "s.sqlite", today=date(2026, 11, 14))
     stats.build(db_path, tmp_path / "before")
-    with sqlite3.connect(db_path) as conn:  # Yahoo (and the scraper) flag consolation games is_playoffs=1 too
-        assert conn.execute("UPDATE matchups SET is_playoffs = 1 WHERE is_consolation = 1").rowcount
+    with sqlite3.connect(db_path) as conn:  # Yahoo flags every game from the playoff start week as a playoff game
+        assert conn.execute("""UPDATE matchups SET is_playoffs = 1, is_consolation = 0 WHERE week >= (
+            SELECT playoff_start_week FROM seasons s WHERE s.season = matchups.season)""").rowcount
     stats.build(db_path, tmp_path / "after")
-    record = lambda d: {m["id"]: (m["career"]["playoffWins"], m["career"]["playoffLosses"])  # noqa: E731
-                        for m in json.loads((tmp_path / d / "managers.json").read_text())}
-    assert record("after") == record("before")
+    load = lambda d, f: json.loads((tmp_path / d / f).read_text())  # noqa: E731
+    assert load("after", "managers.json") == load("before", "managers.json")
+    shame = {c["slug"]: c for c in load("after", "shame.json")}
+    assert shame["the-basement"] == {c["slug"]: c for c in load("before", "shame.json")}["the-basement"]
+    assert shame["toilet-bowl"]["entries"] and shame["toilet-bowl"]["segment"] == "consolation"
 
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    museum = stats.Museum(conn, stats.load_config(stats.config.DATA_DIR / "sample_managers.yaml"))
+    for r in museum.rows:
+        s = museum.seasons[r["season"]]
+        seeds = museum.teams[r["team_key"]]["playoff_seed"], museum.teams[r["opponent_key"]]["playoff_seed"]
+        if r["week"] < s["playoff_start_week"]:
+            assert r["game_type"] == "regular"
+        elif all(seeds):
+            expect = "playoff" if max(seeds) <= s["num_playoff_teams"] else "consolation"
+            assert r["game_type"] == expect, (r["season"], r["week"], seeds)
+    finished = [r for r in museum.games("playoffs") if museum.finished(r["season"])]
+    assert finished and all(r["round_label"] for r in finished)
+    assert {r["round_label"] for r in finished} >= {"Championship", "Semifinal", "3rd place"}
+    records = {c["slug"]: c for c in load("after", "records.json")}
+    playoff_weeks = {(r["season"], r["week"], r["manager"]) for r in museum.games("playoffs")}
+    for e in records["highest-scores"]["segments"]["playoffs"]:
+        assert (e["season"], e["week"], e["manager"]) in playoff_weeks
+    for e in records["highest-scores"]["entries"]:
+        assert e["week"] < museum.seasons[e["season"]]["playoff_start_week"]
+
+
+def test_all_play_and_rivalry_split(tmp_path):
+    db_path = sample.generate(tmp_path / "s.sqlite", today=date(2026, 11, 14))
+    stats.build(db_path, tmp_path)
+    managers = json.loads((tmp_path / "managers.json").read_text())
+    for m in managers:
+        c = m["career"]
+        ap = c["allPlay"]
+        if ap["pct"] is not None:
+            assert 0 <= ap["pct"] <= 1
+        assert c["playoffApps"] >= c["playoffByes"]
+    rivalries = json.loads((tmp_path / "rivalries.json").read_text())
+    for r in rivalries.values():
+        assert r["meetings"] + r["playoff"]["meetings"] == r["totalMeetings"] == len(r["games"])
+        assert r["aWins"] + r["bWins"] + r["ties"] == r["meetings"]
 
 
 def test_live_week_shows_in_lobby_but_never_touches_records(tmp_path):

@@ -3,6 +3,7 @@ import Base from '../../layouts/Base.astro';
 import Chip from '../../components/Chip.astro';
 import Avatar from '../../components/Avatar.astro';
 import ShareButton from '../../components/ShareButton.astro';
+import SegmentLabel from '../../components/SegmentLabel.astro';
 import { rivalries, url, fmt, name, mgr } from '../../lib/data';
 
 export function getStaticPaths() {
@@ -19,6 +20,7 @@ const path = `rivalry/${pair}`;
     <span class="vs-big">vs</span>
     <div class="side"><Avatar id={r.b} size="xl" /><a class="chip-name" href={url(`managers/${r.b}`)}>{name(r.b)}</a><span class="big">{r.bWins}</span></div>
   </header>
+  <p class="center seg-row seg-center"><SegmentLabel segment="regular" /><span class="muted">Series record</span></p>
   <div class="meter" role="img" aria-label={`${name(r.a)} ${r.aWins} wins, ${name(r.b)} ${r.bWins} wins`}>
     <span style={`width:${(r.aWins / total) * 100}%;background:${mgr(r.a).color}`}></span>
     <span style={`width:${(r.ties / total) * 100}%;background:#9ca3af`}></span>
@@ -28,25 +30,35 @@ const path = `rivalry/${pair}`;
   <p class="center"><ShareButton href={url(path)} text={r.caption} label="Share this rivalry" /></p>
 
   <section class="kpis">
-    <div class="kpi"><span class="kpi-v">{r.meetings}</span><span class="kpi-l">Meetings ({r.playoffMeetings} in playoffs)</span></div>
+    <div class="kpi"><span class="kpi-v">{r.meetings}</span><span class="kpi-l">Regular-season meetings</span></div>
     <div class="kpi"><span class="kpi-v">{fmt(r.aPoints, 0)}</span><span class="kpi-l">{name(r.a)} points</span></div>
     <div class="kpi"><span class="kpi-v">{fmt(r.bPoints, 0)}</span><span class="kpi-l">{name(r.b)} points</span></div>
     {r.streak && <div class="kpi"><span class="kpi-v">{r.streak.length}</span><span class="kpi-l">Current streak: {name(r.streak.manager)}</span></div>}
   </section>
+  <div class="kpi-group-head"><h2>Playoffs</h2><SegmentLabel segment="playoffs" /></div>
+  {r.playoff.meetings === 0 ? <p class="empty">Never met in the playoffs.</p> : (
+    <section class="kpis">
+      <div class="kpi"><span class="kpi-v">{r.playoff.aWins}-{r.playoff.bWins}</span><span class="kpi-l">Playoff series ({name(r.a)}–{name(r.b)})</span></div>
+      <div class="kpi"><span class="kpi-v">{r.playoff.meetings}</span><span class="kpi-l">Playoff meetings</span></div>
+      <div class="kpi"><span class="kpi-v">{fmt(r.playoff.aPoints, 0)}</span><span class="kpi-l">{name(r.a)} playoff points</span></div>
+      <div class="kpi"><span class="kpi-v">{fmt(r.playoff.bPoints, 0)}</span><span class="kpi-l">{name(r.b)} playoff points</span></div>
+    </section>
+  )}
 
   <div class="grid-2">
     {r.biggestA && (
       <section class="panel" id="biggest-a"><h2>{name(r.a)}'s biggest win</h2>
-        <p class="big">{fmt(r.biggestA.aPoints)}–{fmt(r.biggestA.bPoints)}</p><p class="muted">{r.biggestA.label}{r.biggestA.kind !== 'regular' ? ` (${r.biggestA.kind})` : ''}</p></section>
+        <p class="big">{fmt(r.biggestA.aPoints)}–{fmt(r.biggestA.bPoints)}</p><p class="muted">{r.biggestA.label} <SegmentLabel segment={r.biggestA.kind} /></p></section>
     )}
     {r.biggestB && (
       <section class="panel" id="biggest-b"><h2>{name(r.b)}'s biggest win</h2>
-        <p class="big">{fmt(r.biggestB.bPoints)}–{fmt(r.biggestB.aPoints)}</p><p class="muted">{r.biggestB.label}{r.biggestB.kind !== 'regular' ? ` (${r.biggestB.kind})` : ''}</p></section>
+        <p class="big">{fmt(r.biggestB.bPoints)}–{fmt(r.biggestB.aPoints)}</p><p class="muted">{r.biggestB.label} <SegmentLabel segment={r.biggestB.kind} /></p></section>
     )}
   </div>
 
   <section class="panel" id="games">
     <div class="panel-head"><h2>Every meeting</h2><ShareButton href={url(`${path}#games`)} /></div>
+    <p class="muted">Regular season and playoffs. Consolation games aren't counted.</p>
     <div class="table-wrap">
       <table>
         <thead><tr><th>When</th><th class="num">{name(r.a)}</th><th class="num">{name(r.b)}</th><th>Winner</th></tr></thead>
@@ -55,7 +67,7 @@ const path = `rivalry/${pair}`;
             const winner = g.result === 'W' ? r.a : g.result === 'L' ? r.b : null;
             return (
               <tr class:list={{ 'is-new-row': g.isNew }} data-manager={winner}>
-                <td><a href={url(`archives/${g.season}`)}>{g.label}</a>{g.isNew && <span class="badge badge-new">New</span>}</td>
+                <td><a href={url(`archives/${g.season}`)}>{g.label}</a>{g.kind === 'playoffs' && <> <SegmentLabel segment="playoffs" /></>}{g.isNew && <span class="badge badge-new">New</span>}</td>
                 <td class:list={['num', { win: g.result === 'W' }]}>{fmt(g.aPoints)}</td>
                 <td class:list={['num', { win: g.result === 'L' }]}>{fmt(g.bPoints)}</td>
                 <td>{winner ? name(winner) : 'Tie'}</td>
