@@ -236,3 +236,35 @@ def test_logos_latest_by_default_and_per_season(tmp_path, monkeypatch):
     mid = with_logo[0]["id"]
     assert meta["logos"]["2025"][mid].startswith(f"logos/2025/{old[1]}-")
     assert len(meta["logos"]["2026"]) == 1  # default Yahoo avatars fall back to initials
+
+
+def test_live_windows_follow_the_nfl_schedule():
+    from datetime import datetime, timezone
+    from zoneinfo import ZoneInfo
+
+    from museum import nfl_schedule as ns
+
+    et = ZoneInfo("America/New_York")
+    at = lambda *a: datetime(*a, tzinfo=et)  # noqa: E731
+    kick = lambda t: {"kickoff": t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%MZ"), "name": ""}  # noqa: E731
+    games = [
+        kick(at(2026, 10, 25, 9, 30)),   # London, EDT
+        kick(at(2026, 10, 25, 13, 0)), kick(at(2026, 10, 25, 16, 25)),
+        kick(at(2026, 10, 25, 20, 20)),  # SNF runs past midnight
+        kick(at(2026, 11, 1, 9, 30)),    # London on the day DST ends (EST)
+        kick(at(2026, 11, 4, 20, 15)),   # Wednesday game
+    ]
+    sched = {"fetched_at": "2026-10-28T12:00:00Z", "from": "2026-10-23", "to": "2026-11-05", "games": games}
+    spans = ns.windows(games)
+    assert spans[0] == (at(2026, 10, 25, 9, 15), at(2026, 10, 26, 0, 20))  # all of Sunday merged
+    assert spans[1][0] == at(2026, 11, 1, 9, 15) and spans[1][0].astimezone(timezone.utc).hour == 14
+    live = lambda *a: ns.decide(sched, at(*a))[0]  # noqa: E731
+    assert not live(2026, 10, 25, 9, 0) and live(2026, 10, 25, 9, 20)       # early London kickoff
+    assert live(2026, 10, 26, 0, 10)                                          # past midnight ET
+    assert live(2026, 10, 26, 0, 30) and not live(2026, 10, 26, 0, 40)       # one final refresh, then stop
+    assert live(2026, 11, 1, 9, 20) and not live(2026, 11, 1, 9, 0)          # DST change doesn't shift it
+    assert live(2026, 11, 4, 21, 0) and not live(2026, 11, 2, 21, 0)         # Wednesday yes, bye-less Monday no
+    # Missing or stale schedule → fixed fallback windows (Sunday 1 PM is live, Wednesday isn't).
+    assert ns.decide(None, at(2026, 11, 8, 14, 0))[0] and not ns.decide(None, at(2026, 11, 4, 21, 0))[0]
+    stale = ns.decide(sched, at(2026, 11, 8, 14, 0))
+    assert stale[0] and stale[1].startswith("WARNING")

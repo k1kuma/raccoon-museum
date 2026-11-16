@@ -1,22 +1,17 @@
 name: Live scores
 
-# Every 15 minutes during NFL game windows: read only the current week's scoreboard (1 Yahoo request),
-# rebuild and redeploy. Nothing is committed — live scores live only in the deployed site, and records,
-# streaks and standings keep using final weeks from data/league.sqlite (committed by the Tuesday run).
+# Live scores during NFL games: read only the current week's scoreboard (1 Yahoo request), rebuild and redeploy.
+# Nothing is committed — live scores live only in the deployed site, and records, streaks and standings keep
+# using final weeks from data/league.sqlite (committed by the Tuesday run).
 #
-# Cron is UTC, so the schedules below cover both EDT (UTC-4) and EST (UTC-5); the "Game window?" step
-# then checks the actual America/New_York time and skips everything outside the windows.
+# The cron fires every 15 minutes all week, but the first step is a seconds-long gate that reads this week's
+# kickoffs from data/nfl_schedule.json (refreshed daily by nfl-schedule.yml) and stops unless a game is on:
+# kickoff −15 min → kickoff +4 h, plus one final refresh after the last window. International, Saturday,
+# Thanksgiving and Christmas games are picked up automatically. If the schedule file is missing or stale,
+# it falls back to fixed Sunday/Monday/Thursday windows and logs a warning.
 on:
   schedule:
-    - cron: "*/15 16-23 * * 0"      # Sunday afternoon/evening
-    - cron: "*/15 0-5 * * 1"        # Sunday night (Monday UTC)
-    - cron: "*/15 0-5 * * 2"        # Monday night (Tuesday UTC)
-    - cron: "*/15 0-5 * * 5"        # Thursday night (Friday UTC)
-    - cron: "*/15 16-23 * 11 4"     # Thanksgiving afternoon
-    - cron: "*/15 17-23 * 12,1 6"   # late-season Saturdays
-    - cron: "*/15 0-5 * 12,1 0"     # late-season Saturday nights (Sunday UTC)
-    - cron: "*/15 17-23 25 12 *"    # Christmas Day
-    - cron: "*/15 0-5 26 12 *"      # Christmas night
+    - cron: "*/15 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -24,59 +19,46 @@ permissions:
   pages: write
   id-token: write
 
-# Shared with "Update & deploy museum" so a live deploy never races the Tuesday data commit.
-concurrency:
-  group: museum-update
-  cancel-in-progress: false
-
 jobs:
-  build:
+  # Outside the concurrency group: these quick checks run every 15 minutes and must never bump a queued Tuesday run.
+  gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 3
+    outputs:
+      live: ${{ steps.window.outputs.live }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            museum
+            data/nfl_schedule.json
+          sparse-checkout-cone-mode: false
+
       - name: Game window?
         id: window
-        shell: python
-        run: |
-          import os
-          from datetime import datetime, timedelta
-          from zoneinfo import ZoneInfo
+        run: python3 -m museum.nfl_schedule gate ${{ github.event_name == 'workflow_dispatch' && '--force' || '' }}
 
-          now = datetime.now(ZoneInfo("America/New_York"))
-          # Treat 00:00-00:29 as the tail of the previous evening so the final whistle is caught.
-          day = now - timedelta(minutes=30) if now.hour == 0 and now.minute < 30 else now
-          mins = (now - day.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds() / 60
-          dow = day.weekday()  # Mon=0 … Sun=6
-          thanksgiving = day.month == 11 and dow == 3 and 22 <= day.day <= 28
-          windows = []
-          if dow == 6 or (dow == 5 and day.month in (12, 1)) or (day.month, day.day) == (12, 25):
-              windows.append((12 * 60 + 45, 24 * 60 + 30))
-          if thanksgiving:
-              windows.append((12 * 60 + 15, 24 * 60 + 30))
-          if dow in (0, 3):
-              windows.append((20 * 60, 24 * 60 + 30))
-          live = any(a <= mins < b for a, b in windows) or os.environ["EVENT"] == "workflow_dispatch"
-          print(f"{now:%a %Y-%m-%d %H:%M} ET → {'in' if live else 'outside'} a game window")
-          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-              f.write(f"live={str(live).lower()}\n")
-        env:
-          EVENT: ${{ github.event_name }}
-
+  build:
+    needs: gate
+    if: needs.gate.outputs.live == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Shared with "Update & deploy museum" so a live deploy never races the Tuesday data commit.
+    concurrency:
+      group: museum-update
+      cancel-in-progress: false
+    steps:
       - uses: actions/checkout@v4
-        if: steps.window.outputs.live == 'true'
 
       - uses: actions/setup-python@v5
-        if: steps.window.outputs.live == 'true'
         with:
           python-version: "3.12"
           cache: pip
 
-      - if: steps.window.outputs.live == 'true'
-        run: pip install -r requirements.txt
+      - run: pip install -r requirements.txt
 
       # Fails the job (so nothing is deployed and the live site keeps its last good build) when cookies expire.
       - name: Scrape live scoreboard
-        if: steps.window.outputs.live == 'true'
         env:
           YAHOO_COOKIES: ${{ secrets.YAHOO_COOKIES }}
           YAHOO_SEASONS: ${{ vars.YAHOO_SEASONS }}
@@ -86,38 +68,32 @@ jobs:
             exit 1
           }
 
-      - if: steps.window.outputs.live == 'true'
-        run: python -m museum stats
+      - run: python -m museum stats
 
       - uses: actions/setup-node@v4
-        if: steps.window.outputs.live == 'true'
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: site/package-lock.json
 
       - name: Build site
-        if: steps.window.outputs.live == 'true'
         working-directory: site
         run: |
           npm ci
           npm run build
 
       - uses: actions/configure-pages@v5
-        if: steps.window.outputs.live == 'true'
 
       - uses: actions/upload-pages-artifact@v3
-        if: steps.window.outputs.live == 'true'
         with:
           path: site/dist
 
-    outputs:
-      live: ${{ steps.window.outputs.live }}
-
   deploy:
     needs: build
-    if: needs.build.outputs.live == 'true'
     runs-on: ubuntu-latest
+    concurrency:
+      group: museum-update
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

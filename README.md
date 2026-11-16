@@ -47,19 +47,19 @@ Yahoo Fantasy API ──yfpy──▶ data/league.sqlite ──museum stats─�
   3. Recomputes the stats.
   4. Builds and deploys to Pages.
 
-* `.github/workflows/live.yml` shows **live scores** in the Lobby. It runs every 15 minutes during NFL game windows (Eastern time):
-  * Sunday from 12:45 PM to midnight
-  * Monday and Thursday from 8 PM to midnight
-  * Thanksgiving afternoon
-  * Saturdays in December and January
-  * Christmas Day
+* `.github/workflows/live.yml` shows **live scores** in the Lobby. It follows each week's real NFL schedule:
+  * `.github/workflows/nfl-schedule.yml` runs daily. It saves the next ~9 days of kickoff times from ESPN's free public scoreboard (no Yahoo requests) to `data/nfl_schedule.json`, and commits only when kickoffs change.
+  * `live.yml` fires every 15 minutes, but its first job is a few-second gate (`python -m museum.nfl_schedule gate`). The gate stops unless a game is on. A game counts as on from 15 minutes before kickoff to 4 hours after (to cover overtime), and overlapping games are merged into one window. One final refresh runs after the last window closes.
+  * Early international games, Saturday, Wednesday and Friday games, Thanksgiving and Christmas are all covered automatically. Times are stored in UTC, so daylight saving can't shift them.
+  * If the schedule file is missing or more than 8 days old, the gate falls back to fixed windows (Sunday 12:45 PM to midnight ET, and Monday/Thursday 8 PM to midnight ET) and logs a warning.
+  * Run `python -m museum.nfl_schedule gate` locally to see the computed windows.
 
-  The cron schedule is in UTC and covers both EDT and EST, and the first step checks the real `America/New_York` time. Each run makes one Yahoo request (`python -m museum scrape --live`), which reads the current week's scoreboard into a gitignored `data/live.json`. The site is then rebuilt and redeployed.
+  When the gate opens, the run makes one Yahoo request (`python -m museum scrape --live`), which reads the current week's scoreboard into a gitignored `data/live.json`. The site is then rebuilt and redeployed.
   * Nothing is committed, so the repo doesn't grow every 15 minutes.
   * Live scores appear only in the Lobby's **Live** panel. Records, streaks and standings use final weeks from the database, which only the Tuesday run updates.
   * If the cookies have expired, the run fails before deploying, so the site keeps its last good build.
 
-  Both workflows share a concurrency group, so a live deploy never overlaps the Tuesday run. You can trigger a live refresh at any time with `gh workflow run live.yml`.
+  Live builds and deploys share a concurrency group with the Tuesday run, so they never overlap. The gate sits outside that group, so it can't bump a queued Tuesday run. You can trigger a live refresh at any time with `gh workflow run live.yml`.
 
 **Team logos:** the scheduled scrape reads each team's Yahoo logo from the standings and teams pages, and copies it into `site/public/logos/<season>/<team_id>-<hash>.<ext>`. A new file is downloaded only when the logo URL changes. The site never hotlinks Yahoo, so the logos keep working if Yahoo's URLs change. Each manager shows their latest logo across the site. Archives (and the Hall of Champions banners) show the logo from that season. Default Yahoo avatars, and missing logos, fall back to initials. Live runs never touch logos.
 
@@ -184,5 +184,5 @@ museum/            Python package: ingest (yfpy), stats, sample generator, OAuth
 scripts/auth.py    One-time Yahoo OAuth helper
 data/              league.sqlite (committed once ingested), managers.yaml
 site/              Astro site (pages in site/src/pages, team logos in site/public/logos)
-.github/workflows  update.yml (weekly ingest + deploy), live.yml (game-day live scores), ci.yml (PR checks)
+.github/workflows  update.yml (weekly ingest + deploy), live.yml (game-day live scores), nfl-schedule.yml (daily kickoff times), ci.yml (PR checks)
 ```
