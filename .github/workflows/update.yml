@@ -17,6 +17,7 @@ permissions:
   contents: write
   pages: write
   id-token: write
+  issues: write
 
 concurrency:
   group: museum-update
@@ -48,10 +49,24 @@ jobs:
           YAHOO_COOKIES: ${{ secrets.YAHOO_COOKIES }}
           YAHOO_SEASONS: ${{ vars.YAHOO_SEASONS }}
         run: |
-          python -m museum scrape --time-budget 300 ${{ inputs.full && '--full' || '' }} || {
-            echo "::error::Scrape failed — if the log mentions the login page, refresh the YAHOO_COOKIES secret (README → Scraping with browser cookies)."
-            exit 1
-          }
+          set +e
+          python -m museum scrape --time-budget 300 ${{ inputs.full && '--full' || '' }}
+          code=$?
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          if [ $code -ne 0 ]; then
+            echo "::error::Scrape failed (exit $code) — if the log mentions the login page, refresh the YAHOO_COOKIES secret (README → Scraping with browser cookies)."
+          fi
+          exit $code
+
+      # Opens (or comments on) a `scrape-failure` issue so GitHub emails you; the next good scrape closes it.
+      - name: Report scrape status
+        if: always() && steps.scrape.conclusion != 'skipped'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python scripts/scrape_alert.py ${{ steps.scrape.outcome == 'success' && 'ok' || 'fail' }}
+          --code "${{ steps.scrape.outputs.code }}" --workflow "${{ github.workflow }}"
+          --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: Ingest from Yahoo API (incremental)
         id: ingest

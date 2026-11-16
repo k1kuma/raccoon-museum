@@ -371,3 +371,45 @@ def test_parse_pairings_reads_future_matchups():
       <li class="Linkable"><a href="/f1/705220/3">A</a><a href="/f1/705220/3">A</a><a href="/f1/705220/7">B</a></li>
       <li class="Linkable"><a href="/f1/705220/1">C</a><a href="/f1/705220/12">D</a></li></ul></div>"""
     assert scrape.parse_pairings(html, "705220") == (12, [(3, 7), (1, 12)])
+
+
+def _script(name):
+    import importlib.util, pathlib
+    path = pathlib.Path(__file__).resolve().parent.parent / "scripts" / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_scrape_alert_text_and_throttle():
+    from datetime import datetime, timezone
+    alert = _script("scrape_alert")
+    assert "cookie" in alert.title_for(3).lower()
+    assert "cookie" not in alert.title_for(1).lower()
+    body = alert.body_for(3, "Live scores", "https://example/run/1", "k1kuma/raccoon-museum")
+    assert "https://example/run/1" in body and "YAHOO_COOKIES" in body
+    now = datetime(2026, 11, 15, 18, tzinfo=timezone.utc)
+    assert alert.should_comment(None, now)
+    assert not alert.should_comment("2026-11-15T15:00:00Z", now)
+    assert alert.should_comment("2026-11-15T11:00:00Z", now)
+
+
+def test_cookie_selection_only_sends_matching_yahoo_cookies():
+    from types import SimpleNamespace as C
+    rc = _script("refresh_cookies")
+    jar = [
+        C(domain=".yahoo.com", name="T", value="general", expires=None),
+        C(domain="football.fantasysports.yahoo.com", name="T", value="specific", expires=None),
+        C(domain=".yahoo.com", name="Y", value="y", expires=2_000_000_000),
+        C(domain=".yahoo.com", name="OLD", value="x", expires=1),
+        C(domain="mail.yahoo.com", name="M", value="m", expires=None),
+        C(domain=".notyahoo.com", name="N", value="n", expires=None),
+        C(domain=".evilyahoo.com", name="E", value="e", expires=None),
+        C(domain=".yahoo.com", name="EMPTY", value="", expires=None),
+    ]
+    picked = rc.select_cookies(jar, now=1_800_000_000)
+    assert picked == {"T": "specific", "Y": "y"}
+    header = rc.cookie_header(picked)
+    assert header == "T=specific; Y=y"
+    assert rc.fingerprint(header) == rc.fingerprint("T=specific; Y=y") != rc.fingerprint("T=general; Y=y")

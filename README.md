@@ -129,9 +129,35 @@ While Yahoo hasn't approved the API app, the workflow can read the league's regu
 
 The first run backfills every season (about 450 pages, roughly 20 minutes, with a ~2 s pause between requests). Weekly runs fetch about 50 pages. To run it locally instead, put `YAHOO_COOKIES=...` in `.env` and run `python -m museum scrape`, then `python -m museum stats`.
 
-* **Expiry:** Yahoo cookies usually last weeks to months, and logging out of that browser session can end them early. When they expire, the run shows *"Scrape failed … refresh the YAHOO_COOKIES secret"* and the site keeps its last data. Repeat steps 1–4 to fix it.
+* **Expiry:** Yahoo cookies usually last weeks to months, and logging out of that browser session can end them early. When they expire, the run shows *"Scrape failed … refresh the YAHOO_COOKIES secret"*, a `scrape-failure` issue is opened (below), and the site keeps its last data. Repeat steps 1–4 to fix it, or let the automatic refresher do it.
 * **Seasons:** the scraper reads the seasons in `SEASONS` in [`museum/config.py`](museum/config.py) (`season:league_id` pairs). When the league renews, add the new pair there or set the repository variable `YAHOO_SEASONS`. The new league ID is in the URL.
 * **Risk:** this is equivalent to you browsing the site slowly, but automated access may go against Yahoo's terms. The cookies give full access to your Yahoo account, so keep them only in the secret or `.env`. Delete the secret (`gh secret delete YAHOO_COOKIES --repo k1kuma/raccoon-museum`) to switch back to the API once it's approved.
+
+#### Failure alerts
+
+When a live or Tuesday scrape fails (expired cookies, the sign-in page, or anything else), the workflow opens a GitHub issue labelled **`scrape-failure`** with the reason, a link to the run, and how to fix it. GitHub emails you about new issues and comments on your own repository by default (check **Settings → Notifications → Email** if you don't get them). While the issue is open, further failures add a comment at most every 6 hours instead of opening duplicates. The next successful scrape closes the issue automatically. The logic lives in [`scripts/scrape_alert.py`](scripts/scrape_alert.py).
+
+#### Automatic cookie refresh (macOS + Chrome)
+
+If you visit Yahoo Fantasy in Chrome regularly, your Mac can keep the secret fresh. [`scripts/refresh_cookies.py`](scripts/refresh_cookies.py) reads only the yahoo.com cookies Chrome would send to the fantasy site and checks them against the league page. It updates `YAHOO_COOKIES` with `gh secret set` (value passed on stdin, never printed or logged) only if they work and have changed. If a `scrape-failure` issue is open, it also re-runs the live workflow so the site recovers. It stores only a SHA-256 fingerprint of the last upload, in `~/Library/Application Support/raccoon-museum/`.
+
+One-time setup, from the repository folder:
+
+```bash
+python3 -m venv .venv                       # if you don't have it yet
+.venv/bin/pip install -r requirements.txt -r requirements-cookies.txt
+gh auth status                              # must be logged in with access to k1kuma/raccoon-museum
+.venv/bin/python scripts/refresh_cookies.py --check-only
+#   macOS asks to let Python use "Chrome Safe Storage" in your Keychain: enter your password, then click "Always Allow".
+#   Expect "Cookies valid: league page loaded."
+scripts/install-cookie-refresher.sh         # runs now, daily at 9:00 and 21:00, and at login
+```
+
+* Check it with `tail ~/Library/Logs/raccoon-museum-cookies.log`. A macOS notification appears if the cookies are invalid or the secret can't be updated.
+* Run it immediately with `scripts/refresh-cookies-now.sh`, e.g. after an alert email (sign in to Yahoo Fantasy in Chrome first).
+* If you use a non-default Chrome profile, add `--cookie-file "~/Library/Application Support/Google/Chrome/Profile 1/Cookies"` to `ProgramArguments` in the plist.
+* Remove it with `scripts/uninstall-cookie-refresher.sh`.
+* The Mac must be awake: launchd runs a missed 9:00/21:00 job when the Mac wakes up.
 
 ### 2. Run the first ingest
 

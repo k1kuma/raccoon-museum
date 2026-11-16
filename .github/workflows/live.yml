@@ -18,6 +18,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  issues: write
 
 jobs:
   # Outside the concurrency group: these quick checks run every 15 minutes and must never bump a queued Tuesday run.
@@ -59,14 +60,29 @@ jobs:
 
       # Fails the job (so nothing is deployed and the live site keeps its last good build) when cookies expire.
       - name: Scrape live scoreboard
+        id: scrape
         env:
           YAHOO_COOKIES: ${{ secrets.YAHOO_COOKIES }}
           YAHOO_SEASONS: ${{ vars.YAHOO_SEASONS }}
         run: |
-          python -m museum scrape --live --delay 0 || {
-            echo "::error::Live scrape failed — if the log mentions the login page, refresh the YAHOO_COOKIES secret (README → Scraping with browser cookies). The site was not redeployed."
-            exit 1
-          }
+          set +e
+          python -m museum scrape --live --delay 0
+          code=$?
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          if [ $code -ne 0 ]; then
+            echo "::error::Live scrape failed (exit $code) — if the log mentions the login page, refresh the YAHOO_COOKIES secret (README → Scraping with browser cookies). The site was not redeployed."
+          fi
+          exit $code
+
+      # Opens (or comments on, at most every 6 h) a `scrape-failure` issue; the next good scrape closes it.
+      - name: Report scrape status
+        if: always() && steps.scrape.conclusion != 'skipped'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python scripts/scrape_alert.py ${{ steps.scrape.outcome == 'success' && 'ok' || 'fail' }}
+          --code "${{ steps.scrape.outputs.code }}" --workflow "${{ github.workflow }}"
+          --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - run: python -m museum stats
 
