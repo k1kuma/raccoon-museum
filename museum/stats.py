@@ -383,22 +383,31 @@ class Museum:
         for season in sorted(self.seasons, reverse=True):
             if not self.finished(season):
                 continue
-            n = self.seasons[season]["num_teams"]
             season_teams = [t for t in self.teams.values() if t["season"] == season]
-            worst_record = min(season_teams, key=lambda t: ((t["wins"] or 0) + 0.5 * (t["ties"] or 0),
-                                                            t["points_for"] or 0), default=None)
-            for t in season_teams:
-                if t["final_rank"] == n:
-                    rec = record_str(t["wins"], t["losses"], t["ties"])
-                    caption = (f"{self.name(self.mgr(t['team_key']))}'s {t['name']} finished dead last in {season} "
-                               f"({ordinal(n)} in Yahoo's final standings), going {rec} with "
-                               f"{f2(t['points_for'])} points.")
-                    if worst_record and worst_record["team_key"] != t["team_key"]:
-                        caption += (f" {self.name(self.mgr(worst_record['team_key']))} had the worst regular-season "
-                                    f"record ({record_str(worst_record['wins'], worst_record['losses'], worst_record['ties'])})"
-                                    f" but escaped the cellar in the consolation bracket.")
-                    basement.append(self.entry(season, rec, caption, self.mgr(t["team_key"]), season))
-        cats.append(self.category("the-basement", "The Basement", "Last-place finishers, season by season.",
+            if not season_teams:
+                continue
+            # Last place = worst regular-season record. Yahoo's final seeds already apply the league's
+            # tiebreaker (points for); fall back to win% then points for when seeds are missing.
+            if all(t["playoff_seed"] for t in season_teams):
+                last = max(season_teams, key=lambda t: t["playoff_seed"])
+            else:
+                last = min(season_teams, key=lambda t: ((t["wins"] or 0) + 0.5 * (t["ties"] or 0),
+                                                        t["points_for"] or 0))
+            rec = record_str(last["wins"], last["losses"], last["ties"])
+            n = len(season_teams)
+            tied = [t for t in season_teams if t is not last and (t["wins"], t["losses"], t["ties"]) ==
+                    (last["wins"], last["losses"], last["ties"])]
+            who = self.name(self.mgr(last["team_key"]))
+            team = last["name"] if last["name"].lower().startswith(who.lower()) else f"{who}'s {last['name']}"
+            caption = (f"{team} finished dead last in {season} "
+                       f"with the league's worst regular-season record, {rec}, and {f2(last['points_for'])} points.")
+            if tied:
+                caption += " Lost the points-for tiebreaker to " + ", ".join(
+                    self.name(self.mgr(t["team_key"])) for t in tied) + "."
+            if last["final_rank"] and last["final_rank"] != n:
+                caption += f" (Yahoo's final standings, after the consolation bracket, have them {ordinal(last['final_rank'])}.)"
+            basement.append(self.entry(season, rec, caption, self.mgr(last["team_key"]), season))
+        cats.append(self.category("the-basement", "The Basement", "Worst regular-season record, season by season.",
                                   basement, ranked=False))
         return cats
 
