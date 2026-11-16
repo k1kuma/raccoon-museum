@@ -120,9 +120,9 @@ const older = archives[idx + 1];
         <ul class="results">
           {w.games.map((g: any) => (
             <li class:list={{ consolation: g.consolation }} data-type={g.type}>
-              <span class:list={['r-side', { win: g.aPoints > g.bPoints }]} data-manager={g.a}>{name(g.a)} <span class="num">{fmt(g.aPoints)}</span></span>
+              <span class:list={['r-side', { win: g.aPoints > g.bPoints }]} data-manager={g.a}><Avatar id={g.a} season={s.season} /> {name(g.a)} <span class="num">{fmt(g.aPoints)}</span></span>
               <span class="muted">–</span>
-              <span class:list={['r-side', { win: g.bPoints > g.aPoints }]} data-manager={g.b}><span class="num">{fmt(g.bPoints)}</span> {name(g.b)}</span>
+              <span class:list={['r-side', { win: g.bPoints > g.aPoints }]} data-manager={g.b}><span class="num">{fmt(g.bPoints)}</span> {name(g.b)} <Avatar id={g.b} season={s.season} /></span>
               {g.type !== 'regular' && <SegmentLabel segment={g.type === 'playoff' ? 'playoffs' : 'consolation'} />}
               {g.type !== 'regular' && g.label && <span class="game-label">{g.label}</span>}
             </li>

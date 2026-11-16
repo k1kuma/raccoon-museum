@@ -1,0 +1,12 @@
+---
+import { name, url } from '../lib/data';
+import Avatar from './Avatar.astro';
+interface Props { a: string; b: string; href?: string; season?: number | string; record?: string }
+const { a, b, href, season, record } = Astro.props;
+const Tag = href ? 'a' : 'span';
+---
+<Tag class="matchup" href={href ? url(href) : undefined}>
+  <span class="mu-side" data-manager={a}><Avatar id={a} season={season} /><span class="mu-name">{name(a)}</span></span>
+  <span class="mu-vs">{record ?? 'vs'}</span>
+  <span class="mu-side mu-b" data-manager={b}><span class="mu-name">{name(b)}</span><Avatar id={b} season={season} /></span>
+</Tag>

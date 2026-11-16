@@ -1,0 +1,51 @@
+---
+import { archives, fmt, lobby, meta, name, url } from '../lib/data';
+import Avatar from './Avatar.astro';
+
+const live = lobby.live;
+let status = '';
+let href = '';
+let games: { a: string; b: string; ap: number | null; bp: number | null; label?: string | null }[] = [];
+let week = 0;
+if (live?.games?.length) {
+  week = live.week;
+  status = live.final ? 'Final' : live.started ? 'Live' : 'Upcoming';
+  href = '#live';
+  games = live.games.map((g: any) => ({ a: g.a.manager, b: g.b.manager, ap: g.a.points, bp: g.b.points, label: g.label }));
+} else {
+  const season = archives.find((s: any) => s.season === meta.latest.season);
+  const wk = season?.weeks.find((w: any) => w.week === meta.latest.week);
+  if (wk) {
+    week = wk.week;
+    status = 'Final';
+    href = `archives/${season.season}#week-${wk.week}`;
+    games = wk.games.map((g: any) => ({ a: g.a, b: g.b, ap: g.aPoints, bp: g.bPoints, label: g.label }));
+  }
+}
+const lead = (x: number | null, y: number | null) => x != null && y != null && x > y;
+---
+{games.length > 0 && (
+  <div class="scorestrip" aria-label={`Week ${week} scoreboard`}>
+    <div class="scorestrip-inner">
+      <a class="ss-head" href={url(href)}>
+        <span class="ss-week">Wk {week}</span>
+        <span class:list={['ss-status', { 'ss-live': status === 'Live' }]}>{status === 'Live' ? '● Live' : status}</span>
+      </a>
+      <ul class="ss-games">
+        {games.map((g) => (
+          <li class="ss-game" data-pair={[g.a, g.b].sort().join('--')}>
+            <a href={url(href)}>
+              {[[g.a, g.ap, g.bp], [g.b, g.bp, g.ap]].map(([id, p, o]) => (
+                <span class:list={['ss-row', { 'ss-lead': lead(p as number, o as number) }]}>
+                  <Avatar id={id as string} />
+                  <span class="ss-name">{name(id as string)}</span>
+                  <span class="ss-pts">{fmt(p as number, 1)}</span>
+                </span>
+              ))}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </div>
+)}

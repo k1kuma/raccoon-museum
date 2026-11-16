@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import Matchup from '../components/Matchup.astro';
 import Chip from '../components/Chip.astro';
 import ShareButton from '../components/ShareButton.astro';
 import { meta, lobby, url, fmt, name, latestLabel, champions, etTime } from '../lib/data';
@@ -136,7 +137,8 @@ import SegmentLabel from '../components/SegmentLabel.astro';
       <ul class="headlines">
         {lobby.fiercestRivalries.map((r: any) => (
           <li data-pair={r.pair}>
-            <a href={url(`rivalry/${r.pair}`)}><strong>{name(r.a)} vs {name(r.b)}</strong></a> — {r.caption}
+            <Matchup a={r.a} b={r.b} href={`rivalry/${r.pair}`} />
+            <p class="caption">{r.caption}</p>
           </li>
         ))}
       </ul>

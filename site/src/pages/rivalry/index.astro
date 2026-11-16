@@ -1,5 +1,6 @@
 ---
 import Base from '../../layouts/Base.astro';
+import Matchup from '../../components/Matchup.astro';
 import { meta, rivalries, url, name } from '../../lib/data';
 const sorted = [...meta.managers].sort((a, b) => a.name.localeCompare(b.name));
 const keys = Object.keys(rivalries);
@@ -21,7 +22,7 @@ const top = Object.entries(rivalries).sort((a: any, b: any) => b[1].totalMeeting
     <h2>Most-played rivalries</h2>
     <ul class="headlines">
       {top.map(([k, r]: [string, any]) => (
-        <li data-pair={k}><a href={url(`rivalry/${k}`)}><strong>{name(r.a)} vs {name(r.b)}</strong></a> — {r.caption}</li>
+        <li data-pair={k}><Matchup a={r.a} b={r.b} href={`rivalry/${k}`} record={`${r.aWins}–${r.bWins}${r.ties ? `–${r.ties}` : ''}`} /><p class="caption">{r.caption}</p></li>
       ))}
     </ul>
   </section>

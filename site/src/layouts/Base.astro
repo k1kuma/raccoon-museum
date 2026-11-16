@@ -1,5 +1,10 @@
 ---
+import '@fontsource/roboto/latin-400.css';
+import '@fontsource/roboto/latin-500.css';
+import '@fontsource/roboto/latin-700.css';
+import '@fontsource/roboto-condensed/latin-700.css';
 import '../styles/global.css';
+import Scoreboard from '../components/Scoreboard.astro';
 import { meta, url, latestLabel } from '../lib/data';
 
 interface Props {
@@ -37,7 +42,7 @@ const sortedManagers = [...meta.managers].sort((a, b) => a.name.localeCompare(b.
     <meta property="og:description" content={desc} />
     <meta property="og:url" content={canonical} />
     <meta name="twitter:card" content="summary" />
-    <meta name="theme-color" content="#2b1d14" />
+    <meta name="theme-color" content="#1d1e1f" />
     <script is:inline>document.documentElement.classList.add('js');</script>
   </head>
   <body data-wing={wing}>
@@ -65,6 +70,7 @@ const sortedManagers = [...meta.managers].sort((a, b) => a.name.localeCompare(b.
         ))}
       </nav>
     </header>
+    <Scoreboard />
     {meta.isSample && (
       <div class="sample-banner" role="note">
         Exhibit preview: showing <strong>sample data</strong> until the Yahoo connection is set up.
