@@ -1,0 +1,36 @@
+---
+import Base from '../../../layouts/Base.astro';
+import Chip from '../../../components/Chip.astro';
+import ShareButton from '../../../components/ShareButton.astro';
+import { fun, url, name } from '../../../lib/data';
+
+export function getStaticPaths() {
+  return fun.awards.map((aw: any) => ({ params: { slug: aw.slug }, props: { aw } }));
+}
+const { aw } = Astro.props;
+const history = fun.history[aw.slug] || [];
+const leaders = fun.leaders[aw.slug] || [];
+const caption = leaders[0]
+  ? `${aw.title}: ${name(leaders[0].manager)} has won it ${leaders[0].count} time${leaders[0].count === 1 ? '' : 's'}, the most in league history.`
+  : aw.blurb;
+---
+<Base title={aw.title} description={caption} wing="fun" ogImage={`og/fun/awards/${aw.slug}.png`}>
+  <nav class="crumbs"><a href={url('fun')}>Fun &amp; Trivia</a> / <span>{aw.title}</span></nav>
+  <header class="page-head">
+    <h1><span aria-hidden="true">{aw.icon}</span> {aw.title}</h1>
+    <p class="lede">{aw.blurb} {caption}</p>
+    <ShareButton href={url(`fun/awards/${aw.slug}`)} text={caption} />
+  </header>
+  <section class="panel">
+    <div class="panel-head"><h2>Most wins</h2></div>
+    <ol class="tally">{leaders.map((t: any) => <li data-manager={t.manager}><Chip id={t.manager} small /> <b>×{t.count}</b></li>)}</ol>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>Every winner</h2></div>
+    <ul class="headlines">
+      {history.map((h: any) => (
+        <li data-manager={h.manager}><a href={url(`fun/week/${h.weekId}#${aw.slug}`)}><b>Week {h.week}, {h.season}</b></a> · {h.display}. {h.caption}</li>
+      ))}
+    </ul>
+  </section>
+</Base>

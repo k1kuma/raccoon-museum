@@ -40,6 +40,9 @@ class CookiesExpired(ScrapeError):
     pass
 
 
+EXIT_COOKIES = 3  # distinct exit code so CI can tell "refresh your cookies" apart from other failures
+
+
 # ---------------------------------------------------------------- helpers
 
 def soup(html: str) -> BeautifulSoup:
@@ -292,6 +295,24 @@ def parse_scoreboard(html: str, lid: str) -> Scoreboard:
             "label": label, "url": el.get("data-target") or (el.select_one("a[href*='matchup']") or {}).get("href"),
         })
     return board
+
+
+def parse_pairings(html: str, lid: str) -> tuple[int | None, list[tuple[int, int]]]:
+    """(week, [(team_a, team_b), ...]) from a scoreboard page — works for future weeks with no scores yet."""
+    section = soup(html).find(id="matchupweek")
+    if section is None:
+        return None, []
+    wk = re.search(r"Week\s+(\d+)", text(section.select_one(".Bdrbot") or section))
+    pairs = []
+    for el in section.select("li.Linkable"):
+        teams = []
+        for a in el.select("a[href]"):
+            tid = team_id_from(a["href"], lid)
+            if tid and tid not in teams:
+                teams.append(tid)
+        if len(teams) == 2:
+            pairs.append((teams[0], teams[1]))
+    return (int(wk.group(1)) if wk else None), pairs
 
 
 def _slot_player(td) -> dict | None:
@@ -550,6 +571,8 @@ class SeasonScraper:
         self.scrape_draft(num_teams, {t["name"]: t["team_id"] for t in standings}, positions, season_points)
         self.fill_positions(positions)
         self.scrape_transactions(end, finished)
+        if self.current and po_start and not finished:
+            self.scrape_schedule(last_completed + 1, po_start - 1)
         if finished:
             db.mark_fetched(conn, f"season:{s}:complete")
         conn.commit()
@@ -577,6 +600,32 @@ class SeasonScraper:
                        settings.get("num_playoff_teams"))
         conn.commit()
         log.info("%s: repaired settings from cache (%s starting slots)", s, len(settings.get("roster_positions", [])))
+
+    def scrape_schedule(self, first: int, last: int) -> None:
+        """Remaining regular-season pairings (1 request per week, fetched once — schedules don't change)."""
+        for week in range(max(first, 1), last + 1):
+            if db.was_fetched(self.conn, f"schedule:{self.season}:{week}") and not self.full:
+                continue
+            try:
+                got, pairs = parse_pairings(self.f.get(
+                    f"{self.prefix}?matchup_week={week}&module=matchups&lhst=matchups"), self.lid)
+            except CookiesExpired:
+                raise
+            except ScrapeError as exc:
+                log.warning("%s: schedule for week %s unavailable (%s)", self.season, week, exc)
+                return
+            if got not in (None, week) or not pairs:
+                log.warning("%s: no pairings for week %s (page showed week %s); playoff odds will use random "
+                            "pairings for it", self.season, week, got)
+                continue
+            self.conn.execute("DELETE FROM schedule WHERE season=? AND week=?", (self.season, week))
+            for a, b in pairs:
+                for me, them in ((a, b), (b, a)):
+                    db.upsert(self.conn, "schedule", {"season": self.season, "week": week,
+                                                      "team_key": self.key(me), "opponent_key": self.key(them)})
+            db.mark_fetched(self.conn, f"schedule:{self.season}:{week}")
+            self.conn.commit()
+            log.info("%s: week %s schedule (%s games)", self.season, week, len(pairs))
 
     def scrape_week(self, week: int, po_start: int | None) -> None:
         s = self.season
@@ -839,7 +888,7 @@ def run_live(cookies: str, args) -> int:
         snap = live_snapshot(f.get(f"/f1/{args.league_id}"), season, args.league_id)
     except ScrapeError as exc:  # includes CookiesExpired
         log.error("%s", exc)
-        return 1
+        return EXIT_COOKIES if isinstance(exc, CookiesExpired) else 1
     out = getattr(args, "live_out", None) or config.LIVE_JSON
     out.write_text(json.dumps(snap, ensure_ascii=False))
     log.info("Live: %s week %s, %s games, final=%s → %s", season, snap["week"], len(snap["games"]),
@@ -867,7 +916,7 @@ def run(args) -> int:
               f"/{current_season}/f1/{seasons[current_season]}/settings")
     except ScrapeError as exc:
         log.error("%s", exc)
-        return 1
+        return EXIT_COOKIES if isinstance(exc, CookiesExpired) else 1
     conn = db.connect(args.db)
     status = 0
     try:
@@ -886,7 +935,7 @@ def run(args) -> int:
         log.warning("Stopping early (%s); progress is saved and the next run resumes.", exc)
     except CookiesExpired as exc:
         log.error("%s", exc)
-        status = 1
+        status = EXIT_COOKIES
     backfill_positions(conn)
     download_logos(conn)
     if conn.execute("SELECT COUNT(*) FROM teams").fetchone()[0]:

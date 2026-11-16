@@ -309,3 +309,65 @@ def test_live_windows_follow_the_nfl_schedule():
     assert ns.decide(None, at(2026, 11, 8, 14, 0))[0] and not ns.decide(None, at(2026, 11, 4, 21, 0))[0]
     stale = ns.decide(sched, at(2026, 11, 8, 14, 0))
     assert stale[0] and stale[1].startswith("WARNING")
+
+
+def test_bracket_order_and_shape():
+    from museum import season
+    assert season.bracket_order(8) == [1, 8, 4, 5, 2, 7, 3, 6]
+    assert season.playoff_shape(12, 6, 15, 17) == {"teams": 6, "rounds": 3, "size": 8, "byes": 2}
+
+
+def test_playoff_odds_are_reproducible_and_consistent():
+    from museum import season
+    teams = [f"t{i}" for i in range(6)]
+    played = []
+    for w in range(4):
+        for i in range(0, 6, 2):
+            a, b = teams[(i + w) % 6], teams[(i + w + 1) % 6]
+            pa, pb = 100 + 10 * int(a[1:]), 100 + 10 * int(b[1:])
+            played += [{"team": a, "opp": b, "pts": pa, "opp_pts": pb}, {"team": b, "opp": a, "pts": pb, "opp_pts": pa}]
+    shape = season.playoff_shape(6, 4, 7, 8)
+    remaining = [[("t0", "t1"), ("t2", "t3"), ("t4", "t5")], None]
+    r1 = season.simulate(teams, played, remaining, shape, 2000, seed=7)
+    r2 = season.simulate(teams, played, remaining, shape, 2000, seed=7)
+    assert r1 == r2
+    assert abs(sum(r["playoff"] for r in r1.values()) - 4) < 1e-9
+    assert abs(sum(r["bye"] for r in r1.values()) - shape["byes"]) < 1e-9
+    assert abs(sum(r["title"] for r in r1.values()) - 1) < 1e-9
+    assert abs(sum(r["last"] for r in r1.values()) - 1) < 1e-9
+    assert r1["t5"]["playoff"] > r1["t0"]["playoff"]
+    # A finished season is certain: no remaining games and the bracket already decided.
+    done = season.simulate(teams, played, [], shape, 50, seed=1)
+    assert sorted(r["playoff"] for r in done.values()) == [0, 0, 1, 1, 1, 1]
+
+
+def test_draft_grades_value_over_expected():
+    from museum import draft
+    assert draft.grade_for(3.0)[0].startswith("A") and draft.grade_for(-3.0)[0] == "F"
+    picks = []
+    n = 0
+    for season in (2024, 2025):
+        for r in range(1, 3):
+            for team in "abcd":
+                n += 1
+                # Same expected slot value each round, but "a" (picking first) massively out-scores "d".
+                pts = {"a": 300, "b": 150, "c": 100, "d": 20}[team] / r
+                picks.append({"season": season, "pick": n, "round": r, "team_key": f"{season}.{team}", "manager": team,
+                              "player_key": f"p{n}", "player_name": f"P{n}", "position": "RB", "season_points": pts})
+    out = draft.grade_drafts(picks, {2024: True, 2025: True}, {}, {(2024, "2024.a", "p1"): 120.0})
+    teams = out["teams"]
+    assert teams["2024.a"]["rank"] == 1 and teams["2024.d"]["rank"] == 4
+    assert teams["2024.a"]["gpa"] > teams["2024.d"]["gpa"]
+    assert out["picks"][(2024, 1)]["kept"] == 120.0
+    assert out["picks"][(2024, 1)]["tier"] in ("steal", "good")
+    assert out["picks"][(2024, 4)]["tier"] in ("bust", "poor")
+    gpa = draft.career_gpa(teams)
+    assert gpa["a"]["gpa"] > gpa["d"]["gpa"]
+
+
+def test_parse_pairings_reads_future_matchups():
+    from museum import scrape
+    html = """<div id="matchupweek"><div class="Bdrbot">Week 12 matchups</div><ul>
+      <li class="Linkable"><a href="/f1/705220/3">A</a><a href="/f1/705220/3">A</a><a href="/f1/705220/7">B</a></li>
+      <li class="Linkable"><a href="/f1/705220/1">C</a><a href="/f1/705220/12">D</a></li></ul></div>"""
+    assert scrape.parse_pairings(html, "705220") == (12, [(3, 7), (1, 12)])

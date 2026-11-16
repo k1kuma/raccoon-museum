@@ -71,6 +71,28 @@ import SegmentLabel from '../components/SegmentLabel.astro';
     </ul>
   </section>
 
+  {lobby.awards && (
+    <section class="panel" id="awards">
+      <div class="panel-head">
+        <h2>Weekly awards <span class="muted">· {lobby.awards.label}</span></h2>
+        <ShareButton href={url(`fun/week/${lobby.awards.id}`)} />
+      </div>
+      <ul class="award-strip">
+        {lobby.awards.awards.map((a: any) => (
+          <li data-manager={a.manager}>
+            <a href={url(`fun/week/${lobby.awards.id}#${a.slug}`)}>
+              <span class="award-icon" aria-hidden="true">{a.icon}</span>
+              <span class="award-t">{a.title}</span>
+              <Chip id={a.manager} small link={false} />
+              <span class="award-val muted">{a.display}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+      <p class="more"><a href={url('fun')}>All awards &amp; trivia →</a></p>
+    </section>
+  )}
+
   <section class="panel" id="records-broken">
     <div class="panel-head">
       <h2>Records broken</h2>
@@ -158,11 +180,13 @@ import SegmentLabel from '../components/SegmentLabel.astro';
   )}
 
   <section class="wings-grid" aria-label="Explore the museum">
+    <a class="card" href={url('season')}><h3>📈 This Season</h3><p class="muted">Playoff odds, power rankings, strength of schedule.</p></a>
     <a class="card" href={url('champions')}><h3>🏆 Hall of Champions</h3><p class="muted">Banners, trophies and the ones who came close.</p></a>
     <a class="card" href={url('records')}><h3>📜 Record Book</h3><p class="muted">Highest scores, blowouts, streaks.</p></a>
     <a class="card" href={url('managers')}><h3>🖼️ Manager Exhibits</h3><p class="muted">Every owner's career, picks and trades.</p></a>
     <a class="card" href={url('rivalry')}><h3>⚔️ Rivalry Room</h3><p class="muted">Any two managers, head to head.</p></a>
     <a class="card" href={url('shame')}><h3>🙈 Hall of Shame</h3><p class="muted">Bench blunders, heartbreaks and busts.</p></a>
     <a class="card" href={url('archives')}><h3>🗄️ Archives</h3><p class="muted">Standings, brackets and draft boards by season.</p></a>
+    <a class="card" href={url('fun')}><h3>🎉 Fun &amp; Trivia</h3><p class="muted">Weekly awards and the all-time trophy cabinet.</p></a>
   </section>
 </Base>

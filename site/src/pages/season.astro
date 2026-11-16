@@ -1,0 +1,108 @@
+---
+import Base from '../layouts/Base.astro';
+import Chip from '../components/Chip.astro';
+import ShareButton from '../components/ShareButton.astro';
+import SegmentLabel from '../components/SegmentLabel.astro';
+import InfoTip from '../components/InfoTip.astro';
+import OddsViz from '../viz/OddsViz';
+import { season as S, meta, mgr, url, fmt, ordinal } from '../lib/data';
+
+const odds = S.odds;
+const power = S.power;
+const pct = (n: number) => (n >= 0.995 && n < 1 ? '>99%' : n > 0 && n < 0.005 ? '<1%' : `${Math.round(n * 100)}%`);
+const heat = (n: number) => `--p:${Math.round(n * 100)}%`;
+const done = S.finished;
+const asOf = odds.asOfWeek;
+const leader = odds.rows[0];
+const caption = done
+  ? `The ${S.season} season is over. These were the final odds and rankings.`
+  : `After Week ${asOf}, ${mgr(leader?.manager).name} has the best playoff odds (${pct(leader?.playoff ?? 0)}). ` +
+    `${odds.remainingWeeks} regular-season week${odds.remainingWeeks === 1 ? '' : 's'} left before the playoffs start in Week ${S.playoffStart}.`;
+const teams = odds.rows.map((r: any) => ({ id: r.manager, name: mgr(r.manager).name, color: mgr(r.manager).color }));
+const arrow = (m: number) => (m > 0 ? `▲${m}` : m < 0 ? `▼${-m}` : '–');
+const maxPower = Math.max(...power.rows.map((r: any) => r.score), 1);
+---
+<Base title={`This Season: ${S.season}`} description={caption} wing="season" ogImage="og/season.png">
+  <header class="page-head">
+    <h1>This Season <span class="muted">{S.season}</span> {!done && <span class="badge badge-live">Through Week {asOf}</span>}</h1>
+    <p class="lede">{caption}</p>
+    <nav class="jump"><a href="#odds">Playoff odds</a> · <a href="#power">Power rankings</a> · <a href="#sos">Strength of schedule</a> · <a href={url(`archives/${S.season}#standings`)}>Standings</a></nav>
+  </header>
+
+  <section class="panel" id="odds">
+    <div class="panel-head"><h2>Playoff odds <InfoTip term="odds" /></h2><ShareButton href={url('season#odds')} text={caption} /></div>
+    <div class="seg-row"><SegmentLabel segment="regular" /><span class="muted">
+      {odds.sims.toLocaleString('en-US')} simulations · top {odds.shape.teams} make the playoffs, top {odds.shape.byes} get a bye
+      {odds.unknownWeeks > 0 && ` · ${odds.unknownWeeks} future week${odds.unknownWeeks === 1 ? '' : 's'} with unknown matchups were drawn at random`}
+    </span></div>
+    <div class="table-wrap">
+      <table class="odds">
+        <thead><tr><th>Manager</th><th>Record</th><th class="num">Now</th><th class="num">Playoffs</th><th class="num">Bye</th><th class="num">Title</th><th class="num">Last</th><th class="num">Avg seed</th></tr></thead>
+        <tbody>
+          {odds.rows.map((r: any) => (
+            <tr data-manager={r.manager}>
+              <td><Chip id={r.manager} small /></td>
+              <td>{r.record}</td>
+              <td class="num">{ordinal(r.seedNow)}</td>
+              <td class="num heat" style={heat(r.playoff)}>{pct(r.playoff)}</td>
+              <td class="num heat" style={heat(r.bye)}>{pct(r.bye)}</td>
+              <td class="num heat" style={heat(r.title)}>{pct(r.title)}</td>
+              <td class="num heat heat-bad" style={heat(r.last)}>{pct(r.last)}</td>
+              <td class="num">{r.avgSeed.toFixed(1)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    {odds.history.length > 1 && (
+      <div class="dive-block">
+        <h4>Odds over time</h4>
+        <p class="dive-sum muted">Recomputed after every final week ({odds.historySims.toLocaleString('en-US')} simulations each for earlier weeks). Tap a week for the numbers; tap a name to highlight it.</p>
+        <div class="chart-wrap"><OddsViz client:visible history={odds.history} teams={teams} label={`${S.season} playoff odds`} /></div>
+      </div>
+    )}
+  </section>
+
+  <section class="panel" id="power">
+    <div class="panel-head"><h2>Power rankings <InfoTip term="power" /></h2><ShareButton href={url('season#power')} /></div>
+    <div class="seg-row"><SegmentLabel segment="regular" /><span class="muted">Week {power.week}. Weights: all-play {power.weights.allPlay * 100}%, form {power.weights.form * 100}%, points for {power.weights.pointsFor * 100}%, vs median {power.weights.median * 100}%.</span></div>
+    <ol class="power">
+      {power.rows.map((r: any) => (
+        <li data-manager={r.manager}>
+          <span class="power-rank">{r.rank}</span>
+          <span class:list={['power-move', r.move > 0 ? 'pos' : r.move < 0 ? 'neg' : 'muted']} title={r.prev ? `Last week: ${ordinal(r.prev)}` : 'New'}>{arrow(r.move)}</span>
+          <Chip id={r.manager} small />
+          <span class="power-bar" aria-hidden="true"><i style={`width:${(r.score / maxPower) * 100}%;background:${mgr(r.manager).color}`}></i></span>
+          <b class="power-score num">{r.score.toFixed(1)}</b>
+          <span class="power-sub muted">All-play {(r.allPlay * 100).toFixed(0)}% · Last 3 avg {fmt(r.form, 1)} · PF {fmt(r.pointsFor, 0)} · vs median {(r.median * 100).toFixed(0)}%</span>
+        </li>
+      ))}
+    </ol>
+  </section>
+
+  <section class="panel" id="sos">
+    <div class="panel-head"><h2>Strength of schedule <InfoTip term="sos" /></h2><ShareButton href={url('season#sos')} /></div>
+    <div class="seg-row"><SegmentLabel segment="regular" /><span class="muted">1st = toughest. "Remaining" covers regular-season weeks still to play.</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Manager</th><th class="num">Past SOS</th><th class="num">Opp. pts vs you</th><th class="num">Remaining SOS</th><th class="num">Opp. PPG</th><th class="num">Games left</th></tr></thead>
+        <tbody>
+          {S.sos.map((r: any) => (
+            <tr data-manager={r.manager}>
+              <td><Chip id={r.manager} small /></td>
+              <td class="num">{r.pastOppAllPlay != null ? `${(r.pastOppAllPlay * 100).toFixed(1)}%` : '—'} <span class="muted">{r.pastRank ? `(${ordinal(r.pastRank)})` : ''}</span></td>
+              <td class="num">{fmt(r.pastOppPoints)}</td>
+              <td class="num">{r.remainingOppAllPlay != null ? `${(r.remainingOppAllPlay * 100).toFixed(1)}%` : '—'} <span class="muted">{r.remainingRank ? `(${ordinal(r.remainingRank)})` : ''}</span></td>
+              <td class="num">{fmt(r.remainingOppPpg)}</td>
+              <td class="num">{r.remainingGames}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    {!done && S.sos.every((r: any) => r.remainingOppAllPlay == null) && odds.remainingWeeks > 0 && (
+      <p class="muted small">Remaining schedule not scraped yet; it fills in after the next Tuesday update.</p>
+    )}
+  </section>
+  <p class="muted small">Updated {meta.latestFinished ? 'for the final standings' : `after Week ${asOf}`}. Live scores never change these numbers until a week is final.</p>
+</Base>

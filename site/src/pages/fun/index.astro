@@ -1,0 +1,53 @@
+---
+import Base from '../../layouts/Base.astro';
+import AwardCard from '../../components/AwardCard.astro';
+import Chip from '../../components/Chip.astro';
+import ShareButton from '../../components/ShareButton.astro';
+import SegmentLabel from '../../components/SegmentLabel.astro';
+import { fun, url, name } from '../../lib/data';
+
+const latest = fun.weeks[0];
+const caption = latest
+  ? `${latest.label}: ${latest.awards.map((a: any) => `${a.title} — ${name(a.manager)}`).slice(0, 3).join('; ')}.`
+  : 'Weekly awards start after the first final week.';
+---
+<Base title="Fun & Trivia" description={caption} wing="fun" ogImage={latest ? `og/fun/week/${latest.id}.png` : undefined}>
+  <header class="page-head">
+    <h1>Fun &amp; Trivia</h1>
+    <p class="lede">Weekly awards, handed out every Tuesday once the week is final. Every award has its own link: share the glory, or the shame.</p>
+    <nav class="jump"><a href="#this-week">This week</a> · <a href="#cabinet">All-time leaders</a> · <a href="#past">Past weeks</a></nav>
+  </header>
+
+  {latest && (
+    <section class="panel" id="this-week">
+      <div class="panel-head"><h2>{latest.label} awards {latest.isNew && <span class="badge badge-new">New this week</span>}</h2><ShareButton href={url(`fun/week/${latest.id}`)} text={caption} /></div>
+      <div class="seg-row"><SegmentLabel segment={latest.segment} /><span class="muted">Consolation games don't count.</span></div>
+      <div class="award-grid">{latest.awards.map((a: any) => <AwardCard a={a} weekId={latest.id} />)}</div>
+    </section>
+  )}
+
+  <section class="panel" id="cabinet">
+    <div class="panel-head"><h2>All-time award leaders</h2><ShareButton href={url('fun#cabinet')} /></div>
+    <div class="leader-grid">
+      {fun.awards.map((aw: any) => {
+        const top = (fun.leaders[aw.slug] || []).slice(0, 3);
+        return (
+          <a class="card leader-card" href={url(`fun/awards/${aw.slug}`)}>
+            <h3><span aria-hidden="true">{aw.icon}</span> {aw.title}</h3>
+            <p class="muted small">{aw.blurb}</p>
+            <ol>{top.map((t: any) => <li data-manager={t.manager}><Chip id={t.manager} small link={false} /> <b>×{t.count}</b></li>)}</ol>
+          </a>
+        );
+      })}
+    </div>
+  </section>
+
+  <section class="panel" id="past">
+    <div class="panel-head"><h2>Past weeks</h2></div>
+    <ul class="week-list">
+      {fun.weeks.map((w: any) => (
+        <li><a href={url(`fun/week/${w.id}`)}>{w.label}</a> <span class="muted small">{w.awards.slice(0, 1).map((a: any) => `${a.icon} ${name(a.manager)}`)}</span></li>
+      ))}
+    </ul>
+  </section>
+</Base>

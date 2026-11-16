@@ -1,0 +1,26 @@
+---
+import Base from '../../../layouts/Base.astro';
+import AwardCard from '../../../components/AwardCard.astro';
+import ShareButton from '../../../components/ShareButton.astro';
+import SegmentLabel from '../../../components/SegmentLabel.astro';
+import { fun, url, name } from '../../../lib/data';
+
+export function getStaticPaths() {
+  return fun.weeks.map((w: any, i: number) => ({ params: { id: w.id }, props: { w, newer: fun.weeks[i - 1], older: fun.weeks[i + 1] } }));
+}
+const { w, newer, older } = Astro.props;
+const caption = `${w.label} awards: ${w.awards.map((a: any) => `${a.title} — ${name(a.manager)}`).join('; ')}.`;
+---
+<Base title={`${w.label} awards`} description={caption} wing="fun" ogImage={`og/fun/week/${w.id}.png`}>
+  <nav class="crumbs"><a href={url('fun')}>Fun &amp; Trivia</a> / <span>{w.label}</span></nav>
+  <header class="page-head">
+    <h1>{w.label} awards</h1>
+    <div class="season-nav">
+      {older && <a class="pill" href={url(`fun/week/${older.id}`)}>← Week {older.week}{older.season !== w.season ? `, ${older.season}` : ''}</a>}
+      <ShareButton href={url(`fun/week/${w.id}`)} text={caption} label="Share awards" />
+      {newer && <a class="pill" href={url(`fun/week/${newer.id}`)}>Week {newer.week}{newer.season !== w.season ? `, ${newer.season}` : ''} →</a>}
+    </div>
+  </header>
+  <div class="seg-row"><SegmentLabel segment={w.segment} /></div>
+  <div class="award-grid">{w.awards.map((a: any) => <AwardCard a={a} weekId={w.id} />)}</div>
+</Base>

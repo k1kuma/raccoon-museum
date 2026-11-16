@@ -7,7 +7,7 @@ import SegmentLabel from '../../components/SegmentLabel.astro';
 import TrendChart from '../../components/TrendChart.astro';
 import CarryBar from '../../components/CarryBar.astro';
 import InfoTip from '../../components/InfoTip.astro';
-import { managers, url, fmt, ordinal } from '../../lib/data';
+import { managers, fun, url, fmt, ordinal } from '../../lib/data';
 
 export function getStaticPaths() {
   return managers.map((m) => ({ params: { id: m.id }, props: { m } }));
@@ -111,6 +111,42 @@ const deep = [...m.seasons].reverse().filter((s: any) => s.trend || s.carry);
     )}
   </div>
 
+  {m.draftCareer && (
+    <section class="panel" id="draft-grades">
+      <div class="panel-head"><h2>Draft report card <InfoTip term="voe" /></h2><ShareButton href={url(`${path}#draft-grades`)} /></div>
+      <div class="seg-row"><SegmentLabel segment="season" /><span class="muted">Career draft GPA <b>{m.draftCareer.gpa.toFixed(2)}</b> · value vs expected {m.draftCareer.voe >= 0 ? '+' : ''}{fmt(m.draftCareer.voe, 0)} pts</span></div>
+      <div class="table-wrap">
+        <table class="grades">
+          <thead><tr><th>Season</th><th>Grade</th><th class="num">Rank</th><th class="num">Value vs exp.</th><th class="num">Kept<InfoTip term="kept" /></th><th>Steal</th><th>Bust</th></tr></thead>
+          <tbody>
+            {[...m.seasons].reverse().filter((s: any) => s.draft).map((s: any) => (
+              <tr>
+                <td><a href={url(`archives/${s.season}#draft`)}>{s.season}</a>{!s.draft.final && <span class="muted"> (so far)</span>}</td>
+                <td><span class={`grade grade-${s.draft.grade[0]}`}>{s.draft.grade}</span></td>
+                <td class="num">{ordinal(s.draft.rank)}</td>
+                <td class:list={['num', s.draft.voe >= 0 ? 'pos' : 'neg']}>{s.draft.voe >= 0 ? '+' : ''}{fmt(s.draft.voe, 0)}</td>
+                <td class="num">{fmt(s.draft.kept, 0)}</td>
+                <td class="small">{s.draft.best.player} <span class="muted">R{s.draft.best.round} · +{fmt(s.draft.best.voe, 0)}</span></td>
+                <td class="small">{s.draft.worst.player} <span class="muted">R{s.draft.worst.round} · {fmt(s.draft.worst.voe, 0)}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )}
+
+  <section class="panel" id="cabinet">
+    <div class="panel-head"><h2>Awards cabinet</h2><ShareButton href={url(`${path}#cabinet`)} /></div>
+    {Object.keys(m.cabinet).length === 0 ? <p class="empty">No weekly awards yet.</p> : (
+      <ul class="cabinet">
+        {fun.awards.filter((a: any) => m.cabinet[a.slug]).map((a: any) => (
+          <li><a href={url(`fun/awards/${a.slug}`)}><span class="award-icon" aria-hidden="true">{a.icon}</span> {a.title} <b>×{m.cabinet[a.slug]}</b></a></li>
+        ))}
+      </ul>
+    )}
+  </section>
+
   <div class="grid-2">
     <section class="panel" id="best-picks">
       <div class="panel-head"><h2>Best draft picks</h2><ShareButton href={url(`${path}#best-picks`)} /></div>
@@ -146,7 +182,7 @@ const deep = [...m.seasons].reverse().filter((s: any) => s.trend || s.carry);
     <p class="muted">Record, vs median (a bonus game each week against the league's median score), true record (both combined), points and seed: regular season. Playoffs: winners'-bracket games. Final finish includes the consolation bracket.</p>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Season</th><th>Team</th><th>Record</th><th>vs median<InfoTip term="median" /></th><th>True<InfoTip term="true" /></th><th class="num">PF</th><th>Seed</th><th>Playoffs</th><th>Final finish</th></tr></thead>
+        <thead><tr><th>Season</th><th>Team</th><th>Record</th><th>vs median<InfoTip term="median" /></th><th>True<InfoTip term="true" /></th><th class="num">PF</th><th class="num">SOS<InfoTip term="sos" /></th><th>Seed</th><th>Playoffs</th><th>Final finish</th></tr></thead>
         <tbody>
           {[...m.seasons].reverse().map((s: any) => (
             <tr>
@@ -156,6 +192,7 @@ const deep = [...m.seasons].reverse().filter((s: any) => s.trend || s.carry);
               <td>{s.vsMedian ?? '—'}</td>
               <td>{s.trueRecord ?? '—'}</td>
               <td class="num">{fmt(s.pointsFor)}</td>
+              <td class="num">{s.sos?.pastOppAllPlay != null ? `${(s.sos.pastOppAllPlay * 100).toFixed(1)}%` : '—'}{s.sos?.pastRank ? <span class="muted"> ({ordinal(s.sos.pastRank)})</span> : null}{s.sos?.remainingOppAllPlay != null ? <span class="muted small"><br />left: {(s.sos.remainingOppAllPlay * 100).toFixed(1)}%</span> : null}</td>
               <td>{s.seed ?? '—'}</td>
               <td>{s.playoffRecord ?? (s.madePlayoffs ? '—' : s.finished ? 'Missed' : '—')}{s.bye ? ' · bye' : ''}</td>
               <td>{s.finished ? (s.rank === 1 ? '🏆 Champion' : s.rank ? ordinal(s.rank) : '—') : 'In progress'}</td>

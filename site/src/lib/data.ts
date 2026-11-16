@@ -7,6 +7,8 @@ import managersJson from '../data/managers.json';
 import rivalriesJson from '../data/rivalries.json';
 import championsJson from '../data/champions.json';
 import archivesJson from '../data/archives.json';
+import seasonJson from '../data/season.json';
+import funJson from '../data/fun.json';
 
 export const meta: any = metaJson;
 export const lobby: any = lobbyJson;
@@ -16,6 +18,8 @@ export const managers: any[] = managersJson as any[];
 export const rivalries: Record<string, any> = rivalriesJson as any;
 export const champions: any = championsJson;
 export const archives: any[] = archivesJson as any[];
+export const season: any = seasonJson;
+export const fun: any = funJson;
 
 const byId = new Map<string, any>(meta.managers.map((m: any) => [m.id, m]));
 
@@ -91,5 +95,10 @@ export const GLOSSARY = {
   allplay: { title: 'All-play record', text: 'Your record if you played every other team every week. With 12 teams, that\'s 11 games a week. It measures how good your scores were, with schedule luck removed.' },
   luck: { title: 'Luck', text: 'Actual wins minus all-play expected wins (all-play win % × games played). Positive means the schedule helped you; negative means you lost games you usually win.' },
   clutch: { title: 'Clutch score', text: 'Points per playoff game minus points per regular-season game (winners\' bracket only). Positive means you score more when it matters.' },
+  sos: { title: 'Strength of schedule', text: 'The average all-play win % of the opponents you faced (or still face). Higher means a tougher schedule; the rank in brackets is 1st = toughest. Opponents\' points against you is shown too where there is room.' },
+  voe: { title: 'Draft grade (value over expected)', text: 'Each pick\'s points minus what that pick usually scores here: the average for the n-th player taken at that position in this league\'s finished drafts. Team value is the sum over all picks, graded on a curve within the season (A+ to F).' },
+  kept: { title: 'Kept value', text: 'Points the drafted players scored while still on the drafting team\'s roster. Trades and drops stop the clock, so this rewards picks you actually kept.' },
+  power: { title: 'Power score', text: 'A 0–100 weekly composite. All-play win % 40%, recent form (last 3 weeks\' average) 25%, total points for 20% and record vs the median 15%. Each part is scaled from the league\'s worst (0) to best (1) that week. Arrows compare with last week.' },
+  odds: { title: 'Playoff odds', text: '10,000 simulations of the rest of the regular season and the playoff bracket. Each team\'s weekly score is drawn from its own scoring so far, pulled slightly toward the league average early in the season. Ties break on points for, like the league. Only final weeks are used, so live scores never move the odds.' },
   carry: { title: 'Carry share', text: 'A player\'s share of the team\'s regular-season starting points. "Without" swaps that player for the best eligible bench player each week to estimate the record without them.' },
 } as const;

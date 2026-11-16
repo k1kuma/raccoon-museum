@@ -1,0 +1,18 @@
+---
+import Chip from './Chip.astro';
+import ShareButton from './ShareButton.astro';
+import { url } from '../lib/data';
+interface Props { a: any; weekId: string; showWeek?: boolean; label?: string }
+const { a, weekId, showWeek = false, label } = Astro.props;
+const href = url(`fun/week/${weekId}#${a.slug}`);
+---
+<article class="award card" id={a.slug} data-manager={a.manager}>
+  <header class="award-head">
+    <span class="award-icon" aria-hidden="true">{a.icon}</span>
+    <h3><a href={url(`fun/awards/${a.slug}`)}>{a.title}</a></h3>
+    <ShareButton href={href} text={a.caption} />
+  </header>
+  <div class="award-who"><Chip id={a.manager} /><b class="award-val">{a.display}</b></div>
+  <p class="award-cap">{a.caption}</p>
+  {showWeek && label && <p class="muted small"><a href={href}>{label}</a></p>}
+</article>

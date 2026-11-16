@@ -494,3 +494,72 @@ html.js #season-lab:not(.ready) .season-dive:not([data-default]) { display: none
 html.js .opt-toggle { display: inline-flex; }
 .opt-toggle[aria-pressed="true"] { background: var(--wood); color: #fff; border-color: var(--wood); }
 html.js .has-opt:not(.show-opt) .opt-col { display: none; }
+
+/* ---------- This Season ---------- */
+.odds td.heat { background: linear-gradient(90deg, rgba(19,115,51,.16) var(--p), transparent var(--p)); font-variant-numeric: tabular-nums; }
+.odds td.heat-bad { background: linear-gradient(90deg, rgba(204,0,0,.14) var(--p), transparent var(--p)); }
+.power { list-style: none; padding: 0; margin: .5rem 0 0; }
+.power li { display: grid; grid-template-columns: 1.6rem 2.4rem minmax(0, 1fr) auto; grid-template-areas: "rank move who score" "rank move bar bar" ". . sub sub"; align-items: center; column-gap: .5rem; row-gap: .15rem; padding: .55rem 0; border-bottom: 1px solid var(--line); }
+.power li:nth-child(odd) { background: #fafafb; }
+.power-rank { grid-area: rank; font: 700 1.25rem/1 var(--head); text-align: center; }
+.power-move { grid-area: move; font: 700 .8rem/1 var(--sans); text-align: center; }
+.power li > .chip { grid-area: who; min-width: 0; }
+.power-score { grid-area: score; font-family: var(--head); font-size: 1.1rem; }
+.power-bar { grid-area: bar; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.power-bar i { display: block; height: 100%; }
+.power-sub { grid-area: sub; font-size: .78rem; }
+.small { font-size: .82rem; }
+.seg-btn { font: 700 .78rem/1 var(--head); text-transform: uppercase; letter-spacing: .04em; min-height: 44px; padding: .4rem .8rem; border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 3px; cursor: pointer; }
+.seg-btn[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+.seg-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.viz-odds { position: relative; width: 100%; }
+.viz-controls { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .5rem; }
+.viz-odds-plot { position: relative; width: 100%; height: 300px; }
+@media (min-width: 768px) { .viz-odds-plot { height: 340px; } }
+.viz-legend { display: flex; flex-wrap: wrap; gap: .25rem .4rem; list-style: none; padding: 0; margin: .5rem 0 0; }
+.viz-legend button { display: inline-flex; align-items: center; gap: .35rem; min-height: 44px; padding: .25rem .55rem; border: 1px solid var(--line); border-radius: 999px; background: #fff; font: 500 .82rem/1 var(--sans); color: var(--ink); cursor: pointer; }
+.viz-legend button.is-focus { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); font-weight: 700; }
+.viz-dot { width: .7rem; height: .7rem; border-radius: 50%; display: inline-block; flex: none; }
+
+/* ---------- Draft grades ---------- */
+.grade { display: inline-block; min-width: 2.2rem; text-align: center; font: 700 .9rem/1 var(--head); padding: .3rem .4rem; border-radius: 3px; color: #fff; text-decoration: none; }
+.grade-A { background: #137333; }
+.grade-B { background: #3a7d1e; }
+.grade-C { background: #6b6f75; }
+.grade-D { background: #b45309; }
+.grade-F { background: #b00000; }
+.pick.tier-steal { background: #c9ebd2; box-shadow: inset 0 0 0 2px var(--green); }
+.pick.tier-good { background: #e6f4e9; }
+.pick.tier-par { background: #fff; }
+.pick.tier-poor { background: #fdecec; }
+.pick.tier-bust { background: #f8cccc; box-shadow: inset 0 0 0 2px var(--red); }
+.tier-legend { display: flex; flex-wrap: wrap; gap: .35rem; list-style: none; padding: 0; margin: .4rem 0; font-size: .78rem; }
+.tier-legend span, span.tier-steal, span.tier-good, span.tier-par, span.tier-poor, span.tier-bust { display: inline-block; padding: .2rem .5rem; border-radius: 3px; border: 1px solid var(--line); }
+span.tier-steal { background: #c9ebd2; } span.tier-good { background: #e6f4e9; } span.tier-par { background: #fff; } span.tier-poor { background: #fdecec; } span.tier-bust { background: #f8cccc; }
+
+/* ---------- Fun & awards ---------- */
+.award-grid, .leader-grid { display: grid; gap: .8rem; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); margin: .6rem 0; }
+.award { padding: .85rem 1rem; border-top: 3px solid var(--accent); }
+.award-head { display: flex; align-items: center; gap: .5rem; }
+.award-head h3 { margin: 0; font-size: 1rem; }
+.award-head h3 a { text-decoration: none; }
+.award-icon { font-size: 1.4rem; line-height: 1; }
+.award-who { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin: .5rem 0 .25rem; }
+.award-val { font: 700 1.15rem/1 var(--head); white-space: nowrap; }
+.award-cap { margin: 0; font-size: .9rem; }
+.award-strip { list-style: none; padding: 0; margin: 0; display: grid; gap: .1rem; }
+.award-strip a { display: grid; grid-template-columns: 1.8rem minmax(0, 1fr) auto; grid-template-areas: "icon title val" "icon who who"; align-items: center; column-gap: .5rem; padding: .5rem 0; min-height: 44px; text-decoration: none; color: inherit; border-bottom: 1px dashed var(--line); }
+.award-strip .award-icon { grid-area: icon; }
+.award-strip .award-t { grid-area: title; font-weight: 700; }
+.award-strip .chip { grid-area: who; }
+.award-strip .award-val { grid-area: val; font-size: .85rem; }
+@media (min-width: 768px) { .award-strip { grid-template-columns: 1fr 1fr; column-gap: 1.5rem; } }
+.leader-card { display: block; padding: .85rem 1rem; text-decoration: none; color: inherit; }
+.leader-card h3 { margin: 0 0 .2rem; font-size: 1rem; }
+.leader-card ol, .tally { margin: .4rem 0 0; padding-left: 1.2rem; }
+.leader-card li, .tally li { padding: .2rem 0; }
+.week-list { list-style: none; padding: 0; margin: 0; columns: 2 220px; }
+.week-list li { break-inside: avoid; padding: .25rem 0; }
+.week-list a { display: inline-block; min-height: 44px; line-height: 44px; }
+.cabinet { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: .4rem; }
+.cabinet a { display: inline-flex; align-items: center; gap: .35rem; min-height: 44px; padding: .3rem .75rem; border: 1px solid var(--line); border-radius: 999px; text-decoration: none; background: #fff; font-size: .88rem; }

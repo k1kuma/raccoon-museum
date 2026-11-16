@@ -11,19 +11,23 @@ interface Props {
   title: string;
   description?: string;
   wing?: string;
+  ogImage?: string;
 }
-const { title, description, wing } = Astro.props;
+const { title, description, wing, ogImage = 'og/lobby.png' } = Astro.props;
+const ogUrl = new URL(url(ogImage), Astro.site).href;
 const fullTitle = title === meta.leagueName ? title : `${title} · ${meta.leagueName} Museum`;
 const desc = description || `The official museum of the ${meta.leagueName} fantasy football league.`;
 const canonical = new URL(Astro.url.pathname, Astro.site).href;
 const nav = [
   ['', 'Lobby', 'lobby'],
+  ['season', 'This Season', 'season'],
   ['champions', 'Champions', 'champions'],
   ['records', 'Records', 'records'],
   ['managers', 'Managers', 'managers'],
   ['rivalry', 'Rivalry Room', 'rivalry'],
   ['shame', 'Hall of Shame', 'shame'],
   ['archives', 'Archives', 'archives'],
+  ['fun', 'Fun & Trivia', 'fun'],
 ];
 const sortedManagers = [...meta.managers].sort((a, b) => a.name.localeCompare(b.name));
 ---
@@ -41,7 +45,14 @@ const sortedManagers = [...meta.managers].sort((a, b) => a.name.localeCompare(b.
     <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={desc} />
     <meta property="og:url" content={canonical} />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:image" content={ogUrl} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={fullTitle} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={desc} />
+    <meta name="twitter:image" content={ogUrl} />
     <meta name="theme-color" content="#1d1e1f" />
     <script is:inline>document.documentElement.classList.add('js');</script>
   </head>

@@ -32,10 +32,10 @@ const older = archives[idx + 1];
   <section class="panel" id="standings">
     <div class="panel-head"><h2>{s.finished ? 'Regular-season standings' : `Standings through Week ${s.lastCompletedWeek}`}</h2><ShareButton href={url(`${path}#standings`)} /></div>
     <div class="seg-row"><SegmentLabel segment="regular" /><span class="muted">Record, points and seed are regular season only. Final finish is after the playoffs and consolation bracket.</span></div>
-    <button type="button" class="pill opt-toggle" data-opt-toggle aria-pressed="false" aria-controls="standings-table">Show vs median, vs average &amp; true record</button>
+    <button type="button" class="pill opt-toggle" data-opt-toggle aria-pressed="false" aria-controls="standings-table">Show vs median, vs average, true record &amp; SOS</button>
     <div class="table-wrap">
       <table id="standings-table" class="has-opt">
-        <thead><tr><th>Seed</th><th>Manager</th><th>Team</th><th>Record</th><th class="opt-col">vs median<InfoTip term="median" /></th><th class="opt-col">vs avg<InfoTip term="average" /></th><th class="opt-col">True<InfoTip term="true" /></th><th class="num">PF</th><th class="num">PA</th><th>Final finish</th><th>Moves</th><th>Draft</th></tr></thead>
+        <thead><tr><th>Seed</th><th>Manager</th><th>Team</th><th>Record</th><th class="opt-col">vs median<InfoTip term="median" /></th><th class="opt-col">vs avg<InfoTip term="average" /></th><th class="opt-col">True<InfoTip term="true" /></th><th class="opt-col num">SOS<InfoTip term="sos" /></th><th class="num">PF</th><th class="num">PA</th><th>Final finish</th><th>Moves</th><th>Draft<InfoTip term="voe" /></th></tr></thead>
         <tbody>
           {s.standings.map((t: any, i: number) => (
             <tr data-manager={t.manager}>
@@ -46,11 +46,12 @@ const older = archives[idx + 1];
               <td class="opt-col">{t.vsMedian ?? '—'}</td>
               <td class="opt-col">{t.vsAverage ?? '—'}</td>
               <td class="opt-col">{t.trueRecord ?? '—'}</td>
+              <td class="opt-col num">{t.pastOppAllPlay != null ? `${(t.pastOppAllPlay * 100).toFixed(1)}%` : '—'}{t.pastRank ? <span class="muted"> ({ordinal(t.pastRank)})</span> : null}</td>
               <td class="num">{fmt(t.pointsFor)}</td>
               <td class="num">{fmt(t.pointsAgainst)}</td>
               <td>{t.finalRank ? (t.finalRank === 1 ? '🏆 1st' : ordinal(t.finalRank)) : '—'}</td>
               <td>{t.moves ?? '—'}{t.trades ? ` / ${t.trades}T` : ''}</td>
-              <td>{t.draftGrade ?? '—'}</td>
+              <td>{t.draftGrade ? <a class={`grade grade-${t.draftGrade[0]}`} href="#draft-grades">{t.draftGrade}</a> : '—'}</td>
             </tr>
           ))}
         </tbody>
@@ -86,7 +87,30 @@ const older = archives[idx + 1];
     <div class="panel-head"><h2>Draft board</h2><ShareButton href={url(`${path}#draft`)} /></div>
     {s.draftBoard.length === 0 ? <p class="empty">No draft results on file.</p> : (
       <>
-        <p class="muted">Ranked by points among drafted players{s.finished ? '' : ' so far'}. <span class="tag tag-steal">Steal</span> <span class="tag tag-bust">Bust</span></p>
+        <div id="draft-grades" class="dive-block">
+          <h4>Draft report card <InfoTip term="voe" /></h4>
+          <div class="seg-row"><SegmentLabel segment="season" /><span class="muted">Grades compare each pick's points{s.finished ? '' : ' so far'} with what that draft slot usually scores in this league.</span></div>
+          <div class="table-wrap">
+            <table class="grades">
+              <thead><tr><th>#</th><th>Manager</th><th>Grade</th><th class="num">Value vs exp.</th><th class="num">Kept<InfoTip term="kept" /></th><th>Best pick</th><th>Worst pick</th></tr></thead>
+              <tbody>
+                {s.draftGrades.map((g: any) => (
+                  <tr data-manager={g.manager}>
+                    <td>{g.rank}</td>
+                    <td><Chip id={g.manager} small season={s.season} /></td>
+                    <td><span class={`grade grade-${g.grade[0]}`}>{g.grade}</span></td>
+                    <td class:list={['num', g.voe >= 0 ? 'pos' : 'neg']}>{g.voe >= 0 ? '+' : ''}{fmt(g.voe, 0)}</td>
+                    <td class="num">{fmt(g.kept, 0)}</td>
+                    <td class="small">{g.best.player} <span class="muted">R{g.best.round} · +{fmt(g.best.voe, 0)}</span></td>
+                    <td class="small">{g.worst.player} <span class="muted">R{g.worst.round} · {fmt(g.worst.voe, 0)}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <p class="muted draft-legend">Colour = points vs expected for that slot{s.finished ? '' : ' so far'}:
+          <span class="tier tier-steal">Steal</span> <span class="tier tier-good">Good</span> <span class="tier tier-par">Par</span> <span class="tier tier-poor">Poor</span> <span class="tier tier-bust">Bust</span></p>
         <p class="swipe-hint muted" aria-hidden="true">Swipe the board sideways →</p>
         <div class="draft-scroll">
           <table class="draft">
@@ -100,10 +124,10 @@ const older = archives[idx + 1];
                     {s.draftOrder.map((id: string) => {
                       const p: any = byMgr.get(id);
                       return p ? (
-                        <td class:list={['pick', p.tag && `tag-${p.tag}`, `pos-${(p.position || '').replace('/', '')}`]} data-manager={id} title={p.caption}>
+                        <td class:list={['pick', p.tier && `tier-${p.tier}`, `pos-${(p.position || '').replace('/', '')}`]} data-manager={id} title={`${p.caption} Expected for a ${p.posRank} pick: ${fmt(p.expected, 0)}.`}>
                           <span class="pick-no">#{p.pick}</span>
                           <span class="pick-name">{p.player}</span>
-                          <span class="pick-meta">{p.position} · {fmt(p.points, 0)} pts</span>
+                          <span class="pick-meta">{p.posRank} · {fmt(p.points, 0)} pts · <b>{p.voe >= 0 ? '+' : ''}{fmt(p.voe, 0)}</b></span>
                         </td>
                       ) : <td></td>;
                     })}
@@ -151,7 +175,7 @@ const older = archives[idx + 1];
   const set = (on: boolean) => {
     table?.classList.toggle('show-opt', on);
     btn?.setAttribute('aria-pressed', String(on));
-    if (btn) btn.textContent = on ? 'Hide vs median, vs average & true record' : 'Show vs median, vs average & true record';
+    if (btn) btn.textContent = on ? 'Hide vs median, vs average, true record & SOS' : 'Show vs median, vs average, true record & SOS';
   };
   set(new URLSearchParams(location.search).get('cols') === 'median');
   btn?.addEventListener('click', () => {

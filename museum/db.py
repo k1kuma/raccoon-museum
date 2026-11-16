@@ -107,6 +107,15 @@ CREATE TABLE IF NOT EXISTS transaction_players (
     PRIMARY KEY (transaction_key, player_key, action)
 );
 
+-- Future regular-season pairings (one row per team per week), used for playoff odds and remaining SOS.
+CREATE TABLE IF NOT EXISTS schedule (
+    season INTEGER NOT NULL,
+    week INTEGER NOT NULL,
+    team_key TEXT NOT NULL,
+    opponent_key TEXT,
+    PRIMARY KEY (season, week, team_key)
+);
+
 CREATE TABLE IF NOT EXISTS fetch_log (
     key TEXT PRIMARY KEY,
     fetched_at TEXT

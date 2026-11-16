@@ -12,6 +12,8 @@ from itertools import combinations
 from pathlib import Path
 
 from . import config, db, lineup
+from . import draft as draft_mod
+from . import season as season_mod
 from .managers import Resolver, load_config
 
 TOP_N = 25
@@ -1077,6 +1079,7 @@ class Museum:
                                 "allPlay": (lambda o: o and {"record": record_str(o["w"], o["l"], o["t"]),
                                                              "luck": o["luck"]})(allplay.get(t["team_key"])),
                                 **self.season_bench(t["team_key"]),
+                                "draft": self._grade_view(t["team_key"]), "sos": self.sos.get(t["team_key"]),
                                 "season": t["season"], "team": t["name"], "wins": t["wins"], "losses": t["losses"],
                                 "ties": t["ties"], "pointsFor": t["points_for"], "pointsAgainst": t["points_against"],
                                 "rank": t["final_rank"], "seed": t["playoff_seed"], "finished": bool(s["is_finished"]),
@@ -1162,12 +1165,19 @@ class Museum:
                 "worstTrades": [self._trade_view(t) for t in sorted(my_trades, key=lambda t: t["net"])[:3]
                                 if t["net"] < 0],
                 "rivals": rivals,
+                "draftCareer": self.grades["careers"].get(mid),
+                "cabinet": self.cabinet.get(mid, {}),
                 "streak": self.streak_entry(streak) if streak and streak["length"] >= 2 else None,
             })
         return pages
 
+    def _grade_view(self, team_key):
+        g = self.grades["teams"].get(team_key)
+        return g and {k: g[k] for k in ("grade", "gpa", "voe", "kept", "points", "rank", "best", "worst", "final")}
+
     def _pick_view(self, p):
-        return {"season": p["season"], "pick": p["pick"], "round": p["round"], "player": p["player_name"],
+        e = self.grades["picks"].get((p["season"], p["pick"]), {})
+        return {**{k: e.get(k) for k in ("voe", "expected", "kept", "tier", "posRank")},"season": p["season"], "pick": p["pick"], "round": p["round"], "player": p["player_name"],
                 "position": p["position"], "points": p["season_points"], "pointsRank": p["points_rank"],
                 "value": p["value"], "caption": self.pick_caption(p)}
 
@@ -1192,7 +1202,10 @@ class Museum:
             standings = [{"rank": t["final_rank"], "finalRank": t["final_rank"] if s["is_finished"] else None, "manager": self.mgr(t["team_key"]), "team": t["name"],
                           "wins": t["wins"], "losses": t["losses"], "ties": t["ties"], "pointsFor": t["points_for"],
                           "pointsAgainst": t["points_against"], "seed": t["playoff_seed"], "moves": t["moves"],
-                          "trades": t["trades"], "draftGrade": t["draft_grade"],
+                          "trades": t["trades"],
+                          "draftGrade": (self.grades["teams"].get(t["team_key"]) or {}).get("grade"),
+                          **{k: (self.sos.get(t["team_key"]) or {}).get(k) for k in
+                             ("pastOppAllPlay", "pastRank", "pastOppPoints")},
                           **{k: v for k, v in self.season_bench(t["team_key"]).items() if k in
                              ("vsMedian", "vsAverage", "trueRecord")}} for t in teams]
             weeks = defaultdict(list)
@@ -1216,9 +1229,9 @@ class Museum:
                     order.append(p["manager"])
             board = defaultdict(list)
             for p in picks:
-                board[p["round"]].append({**self._pick_view(p), "manager": p["manager"],
-                                          "tag": "steal" if p["value"] >= 40 else "bust" if p["value"] <= -40 and
-                                          (p["round"] or 99) <= 6 else None})
+                view = self._pick_view(p)
+                board[p["round"]].append({**view, "manager": p["manager"],
+                                          "tag": view["tier"] if view["tier"] in ("steal", "bust") else None})
             for rnd, row in board.items():
                 row.sort(key=lambda c: order.index(c["manager"]) if c["manager"] in order else 99)
             champion = next((st for st in standings if st["finalRank"] == 1), None) if s["is_finished"] else None
@@ -1228,7 +1241,10 @@ class Museum:
             out.append({"season": season, "name": s["name"], "finished": bool(s["is_finished"]),
                         "lastCompletedWeek": s.get("last_completed_week"), "numTeams": s["num_teams"],
                         "caption": caption, "standings": standings, "bracket": bracket,
-                        "draftOrder": order, "draftBoard": [{"round": r, "picks": board[r]} for r in sorted(board)],
+                        "draftOrder": order,
+                        "draftGrades": sorted(({"manager": g["manager"], **self._grade_view(tk)}
+                                               for tk, g in self.grades["teams"].items() if g["season"] == season),
+                                              key=lambda g: g["rank"]), "draftBoard": [{"round": r, "picks": board[r]} for r in sorted(board)],
                         "weeks": [{"week": w, "games": weeks[w]} for w in sorted(weeks, reverse=True)],
                         "trades": [self._trade_view(t) for t in trades if t["season"] == season and t["net"] >= 0]})
         return out
@@ -1373,6 +1389,11 @@ class Museum:
         profile = self.playoff_profile()
         self.marks, self.bm = self.benchmarks()
         self.carries = self.carry()
+        from . import awards as awards_mod  # awards imports helpers from this module
+        self.grades = self.draft_grades()
+        self.sos = season_mod.sos_for_all(self, allplay)
+        fun = awards_mod.build_fun(self, bench)
+        self.cabinet = fun["cabinet"]
         records = self.record_book(streaks, allplay, profile)
         shame = self.hall_of_shame(bench, drafts, trades, allplay)
         h2h = self.head_to_head()
@@ -1392,8 +1413,33 @@ class Museum:
             "logos": {str(y): v for y, v in self.logos.items()},
             "lore": self.lore,
         }
+        lobby["awards"] = next((w for w in fun["weeks"] if w["id"] == fun["latest"]), None)
         return {"meta": meta, "lobby": lobby, "records": records, "shame": shame, "managers": managers,
-                "rivalries": h2h, "champions": self.champions(), "archives": self.archives(drafts, trades)}
+                "rivalries": h2h, "champions": self.champions(), "archives": self.archives(drafts, trades),
+                "season": self.this_season(allplay), "fun": fun}
+
+    # ---------- this season / draft grades ----------
+    def this_season(self, allplay) -> dict:
+        season = self.latest["season"]
+        lab = season_mod.SeasonLab(self, season)
+        sos = lab.sos(allplay)
+        sos_rows = sorted(({"manager": self.mgr(t), "team": self.teams[t]["name"], **v} for t, v in sos.items()),
+                          key=lambda r: r.get("pastRank") or 99)
+        return {"season": season, "finished": self.finished(season), "odds": lab.odds(), "power": lab.power(),
+                "sos": sos_rows, "playoffStart": lab.po_start}
+
+    def draft_grades(self) -> dict:
+        kept = defaultdict(float)
+        for p in self.slots:
+            kept[(p["season"], p["team_key"], p["player_key"])] += p["points"] or 0
+        fraction = {}
+        for season, s in self.seasons.items():
+            end = s.get("end_week") or 17
+            fraction[season] = 1.0 if s.get("is_finished") else min(1.0, (s.get("last_completed_week") or 0) / end)
+        picks = [{**p, "manager": self.mgr(p["team_key"])} for p in self.picks]
+        g = draft_mod.grade_drafts(picks, {s: self.finished(s) for s in self.seasons}, fraction, kept)
+        g["careers"] = draft_mod.career_gpa(g["teams"])
+        return g
 
 
 def build(db_path: Path, out_dir: Path, live_path: Path | None = None) -> None:
