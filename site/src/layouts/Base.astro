@@ -38,6 +38,7 @@ const sortedManagers = [...meta.managers].sort((a, b) => a.name.localeCompare(b.
     <meta property="og:url" content={canonical} />
     <meta name="twitter:card" content="summary" />
     <meta name="theme-color" content="#2b1d14" />
+    <script is:inline>document.documentElement.classList.add('js');</script>
   </head>
   <body data-wing={wing}>
     <a class="skip" href="#main">Skip to content</a>
@@ -47,6 +48,9 @@ const sortedManagers = [...meta.managers].sort((a, b) => a.name.localeCompare(b.
           <span class="brand-mark" aria-hidden="true">🦝</span>
           <span><span class="brand-name">{meta.leagueName}</span><span class="brand-sub">Fantasy Football Museum</span></span>
         </a>
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="wings">
+          <span class="menu-icon" aria-hidden="true"></span><span class="sr">Menu</span>
+        </button>
         <label class="whoami">
           <span>Who are you?</span>
           <select id="whoami" aria-label="Highlight your team">
@@ -55,7 +59,7 @@ const sortedManagers = [...meta.managers].sort((a, b) => a.name.localeCompare(b.
           </select>
         </label>
       </div>
-      <nav class="wings" aria-label="Museum wings">
+      <nav class="wings" id="wings" aria-label="Museum wings">
         {nav.map(([href, label, key]) => (
           <a href={url(href)} aria-current={wing === key ? 'page' : undefined}>{label}</a>
         ))}
@@ -81,6 +85,20 @@ const sortedManagers = [...meta.managers].sort((a, b) => a.name.localeCompare(b.
     </footer>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script>
+      const header = document.querySelector('.site-header');
+      const toggle = document.querySelector<HTMLButtonElement>('.menu-toggle');
+      toggle?.addEventListener('click', () => {
+        const open = !header?.classList.contains('nav-open');
+        header?.classList.toggle('nav-open', open);
+        toggle.setAttribute('aria-expanded', String(open));
+      });
+      document.getElementById('wings')?.addEventListener('click', (e) => {
+        if ((e.target as HTMLElement).closest('a') && header?.classList.contains('nav-open')) toggle?.click();
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && header?.classList.contains('nav-open')) toggle?.click();
+      });
+
       const KEY = 'ffm-me';
       const select = document.getElementById('whoami') as HTMLSelectElement | null;
       function applyMe(id: string) {

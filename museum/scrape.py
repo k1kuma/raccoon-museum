@@ -15,6 +15,7 @@ import re
 import time
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from bs4 import BeautifulSoup
@@ -213,6 +214,32 @@ def parse_teams(html: str, lid: str) -> list[dict]:
                         "manager_nickname": nickname or None, "moves": count("Moves"), "trades": count("Trades")})
         return out
     return []
+
+
+LOGO_HOSTS = ("yimg.com", "yahoofantasysports-res", "cloudinary.com")
+
+
+def parse_logos(html: str, lid: str) -> dict[int, str]:
+    """{team_id: logo URL} from any page that shows team avatars next to team links (standings, /teams)."""
+    out: dict[int, str] = {}
+    for img in soup(html).select("img"):
+        src = img.get("src") or img.get("data-src") or ""
+        if src.startswith("//"):
+            src = "https:" + src
+        if not src.startswith("http") or not any(h in src for h in LOGO_HOSTS):
+            continue
+        a = img.find_parent("a", href=True)
+        tid = team_id_from(a["href"], lid) if a else None
+        if not tid and (row := img.find_parent(["tr", "li"])):
+            ids = {team_id_from(x["href"], lid) for x in row.select("a[href]")} - {None}
+            tid = ids.pop() if len(ids) == 1 else None
+        if tid and tid not in out:
+            out[tid] = src
+    return out
+
+
+def is_default_logo(url: str | None) -> bool:
+    return not url or "/default" in url or "default_" in url
 
 
 def parse_bracket(html: str, lid: str) -> dict[int, int]:
@@ -466,8 +493,9 @@ class SeasonScraper:
             row = conn.execute("SELECT roster_positions FROM seasons WHERE season=?", (s,)).fetchone()
             if row and json.loads(row["roster_positions"] or "[]"):
                 log.info("%s: complete in cache, skipping", s)
-                return
-            self.repair_settings()
+            else:
+                self.repair_settings()
+            self.backfill_logos()
             return
         settings = parse_settings(self.f.get(f"{self.prefix}/settings"))
         if not settings.get("end_week"):
@@ -475,7 +503,11 @@ class SeasonScraper:
         home = self.f.get(self.prefix)
         standings_html = self.f.get(f"{self.prefix}?lhst=stand")
         standings = parse_standings(standings_html, self.lid)
-        teams = {t["team_id"]: t for t in parse_teams(self.f.get(f"{self.prefix}/teams"), self.lid)}
+        teams_html = self.f.get(f"{self.prefix}/teams")
+        teams = {t["team_id"]: t for t in parse_teams(teams_html, self.lid)}
+        logos = {**parse_logos(teams_html, self.lid), **parse_logos(standings_html, self.lid)}
+        old_logos = {r["team_id"]: r["logo_url"] for r in self.conn.execute(
+            "SELECT team_id, logo_url FROM teams WHERE season=?", (s,))}
         if not standings:
             raise ScrapeError(f"{s}: no standings found — page layout may have changed")
         num_teams = len(standings)
@@ -500,7 +532,7 @@ class SeasonScraper:
             db.upsert(conn, "teams", {
                 "team_key": self.key(st["team_id"]), "season": s, "team_id": st["team_id"], "name": st["name"],
                 "manager_guid": t.get("manager_guid"), "manager_nickname": t.get("manager_nickname"),
-                "logo_url": None, "final_rank": st["rank"], "playoff_seed": None, "wins": st["wins"],
+                "logo_url": logos.get(st["team_id"]) or old_logos.get(st["team_id"]), "final_rank": st["rank"], "playoff_seed": None, "wins": st["wins"],
                 "losses": st["losses"], "ties": st["ties"], "points_for": st["points_for"],
                 "points_against": st["points_against"], "moves": t.get("moves", st["moves"]),
                 "trades": t.get("trades"), "draft_grade": None,
@@ -521,6 +553,17 @@ class SeasonScraper:
         if finished:
             db.mark_fetched(conn, f"season:{s}:complete")
         conn.commit()
+
+    def backfill_logos(self) -> None:
+        """One extra request for finished seasons scraped before logos were collected."""
+        if db.was_fetched(self.conn, f"logos:{self.season}"):
+            return
+        logos = parse_logos(self.f.get(f"{self.prefix}?lhst=stand"), self.lid)
+        for tid, logo in logos.items():
+            self.conn.execute("UPDATE teams SET logo_url=? WHERE season=? AND team_id=?", (logo, self.season, tid))
+        db.mark_fetched(self.conn, f"logos:{self.season}")
+        self.conn.commit()
+        log.info("%s: %s team logos", self.season, len(logos))
 
     def repair_settings(self) -> None:
         """Re-read settings/bracket for a cached season (2 requests) instead of re-scraping every week."""
@@ -723,6 +766,53 @@ def backfill_positions(conn) -> None:
                          (known[key], key))
 
 
+def _logo_bytes(url: str) -> tuple[bytes, str] | None:
+    import requests
+
+    # Yahoo's avatars are served small; ask the image CDN for a crisper square when it supports transforms.
+    candidates = [re.sub(r"/t_s\d+sq/", "/t_s192sq/", url), url] if "/t_s" in url else [url]
+    for candidate in dict.fromkeys(candidates):
+        try:
+            resp = requests.get(candidate, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
+        except requests.RequestException:
+            continue
+        kind = resp.headers.get("Content-Type", "")
+        if resp.status_code == 200 and kind.startswith("image/") and resp.content:
+            ext = {"image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp", "image/svg+xml": "svg"}.get(
+                kind.split(";")[0], "png")
+            return resp.content, ext
+    return None
+
+
+def download_logos(conn, dest: Path | None = None) -> None:
+    """Copy every season's team logo into the site so it survives Yahoo URL changes.
+
+    Files are named <team_id>-<hash of URL>, so a changed logo gets a new file and an unchanged one is never
+    re-downloaded. Default Yahoo avatars are skipped (the site falls back to initials)."""
+    dest = dest or config.LOGOS_DIR
+    got = 0
+    for t in conn.execute("SELECT season, team_id, logo_url FROM teams WHERE logo_url IS NOT NULL"):
+        folder = dest / str(t["season"])
+        stem = logo_stem(t["team_id"], t["logo_url"])
+        if is_default_logo(t["logo_url"]) or any(folder.glob(f"{stem}.*")):
+            continue
+        data = _logo_bytes(t["logo_url"])
+        if not data:
+            log.warning("Couldn't download logo for %s team %s", t["season"], t["team_id"])
+            continue
+        folder.mkdir(parents=True, exist_ok=True)
+        for old in folder.glob(f"{t['team_id']}-*"):
+            old.unlink()
+        (folder / f"{stem}.{data[1]}").write_bytes(data[0])
+        got += 1
+    if got:
+        log.info("Downloaded %s team logos", got)
+
+
+def logo_stem(team_id: int, url: str) -> str:
+    return f"{team_id}-{hashlib.sha1(url.encode()).hexdigest()[:8]}"
+
+
 def live_snapshot(html: str, season: int, lid: str) -> dict:
     """The current week's scoreboard as a small JSON payload (scores so far + Yahoo projections)."""
     board = parse_scoreboard(html, lid)
@@ -798,6 +888,7 @@ def run(args) -> int:
         log.error("%s", exc)
         status = 1
     backfill_positions(conn)
+    download_logos(conn)
     if conn.execute("SELECT COUNT(*) FROM teams").fetchone()[0]:
         db.set_meta(conn, "is_sample", "0")
         db.set_meta(conn, "last_ingest", datetime.now(timezone.utc).isoformat())

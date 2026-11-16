@@ -23,6 +23,13 @@ export function mgr(id: string | null | undefined) {
   return (id && byId.get(id)) || { id, name: id || 'Unknown', color: '#6b7280', initials: '?' };
 }
 
+/** Team logo for a manager: that season's when given (Archives), otherwise their latest. */
+export function logoFor(id: string | null | undefined, season?: number | string): string | null {
+  if (!id) return null;
+  if (season !== undefined) return meta.logos?.[String(season)]?.[id] ?? null;
+  return mgr(id).logo ?? null;
+}
+
 export const name = (id: string | null | undefined) => mgr(id).name;
 
 const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');

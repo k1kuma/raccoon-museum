@@ -1,0 +1,12 @@
+---
+import { logoFor, mgr, url } from '../lib/data';
+interface Props { id: string | null | undefined; season?: number | string; size?: 'lg' | 'xl' }
+const { id, season, size } = Astro.props;
+const m = mgr(id);
+const logo = logoFor(id, season);
+---
+{logo ? (
+  <img class:list={['avatar', 'avatar-img', size && `avatar-${size}`]} src={url(logo)} alt="" loading="lazy" decoding="async" width="96" height="96" />
+) : (
+  <span class:list={['avatar', size && `avatar-${size}`]} style={`--c:${m.color}`} aria-hidden="true">{m.initials}</span>
+)}

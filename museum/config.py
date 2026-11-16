@@ -10,6 +10,8 @@ LEAGUE_DB = DATA_DIR / "league.sqlite"
 SAMPLE_DB = DATA_DIR / "sample.sqlite"
 MANAGERS_YAML = DATA_DIR / "managers.yaml"
 STATS_OUT = ROOT / "site" / "src" / "data"
+# Team logos copied from Yahoo by the weekly scrape, served from site/public/logos/<season>/.
+LOGOS_DIR = ROOT / "site" / "public" / "logos"
 # In-progress week from `scrape --live`; deployed with the site but never committed.
 LIVE_JSON = DATA_DIR / "live.json"
 

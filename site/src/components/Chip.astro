@@ -1,11 +1,12 @@
 ---
 import { mgr, url } from '../lib/data';
-interface Props { id: string | null | undefined; link?: boolean; small?: boolean }
-const { id, link = true, small = false } = Astro.props;
+import Avatar from './Avatar.astro';
+interface Props { id: string | null | undefined; link?: boolean; small?: boolean; season?: number | string }
+const { id, link = true, small = false, season } = Astro.props;
 const m = mgr(id);
 const Tag = link && id ? 'a' : 'span';
 ---
 <Tag class:list={['chip', { 'chip-sm': small }]} href={link && id ? url(`managers/${id}`) : undefined} data-manager={id}>
-  <span class="avatar" style={`--c:${m.color}`} aria-hidden="true">{m.initials}</span>
+  <Avatar id={id} season={season} />
   <span class="chip-name">{m.name}</span>
 </Tag>

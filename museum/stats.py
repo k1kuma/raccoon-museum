@@ -36,7 +36,7 @@ def record_str(w: int, l: int, t: int = 0) -> str:
 
 
 class Museum:
-    def __init__(self, conn: sqlite3.Connection, manager_config: dict):
+    def __init__(self, conn: sqlite3.Connection, manager_config: dict, logos_dir: Path | None = None):
         self.conn = conn
         q = lambda sql: [dict(r) for r in conn.execute(sql).fetchall()]  # noqa: E731
         self.seasons = {r["season"]: r for r in q("SELECT * FROM seasons ORDER BY season")}
@@ -56,6 +56,11 @@ class Museum:
             m = self.managers[mid]
             m["color"] = PALETTE[i % len(PALETTE)]
             m["initials"] = "".join(w[0] for w in m["name"].replace("-", " ").split()[:2]).upper() or "?"
+
+        self.logos = self.find_logos(logos_dir or config.LOGOS_DIR)
+        for mid, m in self.managers.items():
+            m["logo"] = next((self.logos[y][mid] for y in sorted(self.logos, reverse=True) if mid in self.logos[y]),
+                             None)
 
         for r in self.rows:
             # Yahoo flags consolation games as playoffs too; here "playoffs" means the championship bracket only.
@@ -564,10 +569,10 @@ class Museum:
                                          "week": r["week"], "label": self.week_label(r), "result": r["result"]}
             pct = (w + 0.5 * ti) / (w + l + ti) if (w + l + ti) else 0
             first, last_season = (teams[0]["season"], teams[-1]["season"]) if teams else (None, None)
-            title_txt = (f"{len(tc['titles'])} championship{'s' if len(tc['titles']) != 1 else ''} "
-                         f"({', '.join(map(str, tc['titles']))})" if tc["titles"] else "no championships (yet)")
+            title_txt = (f" with {len(tc['titles'])} championship{'s' if len(tc['titles']) != 1 else ''} "
+                         f"({', '.join(map(str, tc['titles']))})" if tc["titles"] else "")
             caption = (f"{m['name']} has managed {len(teams)} season{'s' if len(teams) != 1 else ''} "
-                       f"({first}–{last_season}), going {record_str(w, l, ti)} ({pct:.3f}) with {title_txt}.")
+                       f"({first}–{last_season}), going {record_str(w, l, ti)} ({pct:.3f}){title_txt}.")
             streak = active_streaks.get(mid)
             pages.append({
                 **{k: m[k] for k in ("id", "name", "nickname", "bio", "lore", "color", "initials")},
@@ -768,6 +773,20 @@ class Museum:
         return {"season": live["season"], "week": live["week"], "final": bool(live.get("final")),
                 "started": started, "updatedAt": live["fetchedAt"], "games": games}
 
+    def find_logos(self, folder: Path) -> dict[int, dict[str, str]]:
+        """{season: {manager: site-relative path}} for every team logo downloaded by the scraper."""
+        from .scrape import is_default_logo, logo_stem
+
+        out: dict[int, dict[str, str]] = defaultdict(dict)
+        for t in self.teams.values():
+            if is_default_logo(t.get("logo_url")):
+                continue
+            hit = next(iter(sorted((folder / str(t["season"])).glob(f"{logo_stem(t['team_id'], t['logo_url'])}.*"))),
+                       None)
+            if hit:
+                out[t["season"]][self.mgr(t["team_key"])] = f"logos/{t['season']}/{hit.name}"
+        return dict(out)
+
     # ---------- build ----------
     def build(self, live: dict | None = None) -> dict[str, object]:
         bench = self.bench_rows()
@@ -789,7 +808,8 @@ class Museum:
             "liveUpdatedAt": lobby["live"]["updatedAt"] if lobby["live"] else None,
             "seasons": sorted(self.seasons, reverse=True),
             "managers": [{"id": m["id"], "name": m["name"], "color": m["color"], "initials": m["initials"],
-                          "active": m["active"]} for m in managers],
+                          "logo": self.managers[m["id"]]["logo"], "active": m["active"]} for m in managers],
+            "logos": {str(y): v for y, v in self.logos.items()},
             "lore": self.lore,
         }
         return {"meta": meta, "lobby": lobby, "records": records, "shame": shame, "managers": managers,

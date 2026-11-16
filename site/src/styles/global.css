@@ -216,3 +216,61 @@ summary { cursor: pointer; font-weight: 600; }
 .live-pts { font-weight: 700; font-variant-numeric: tabular-nums; }
 .live-proj { grid-column: 1 / -1; font-size: .75rem; }
 .live-side.leading .live-pts { color: var(--green); }
+.avatar-img { object-fit: cover; background: #fff; padding: 0; }
+
+/* ---------- touch & small screens ---------- */
+.menu-toggle { display: none; }
+.wings a, .pill, .share, .btn, .whoami select, .rivalry-picker select, summary { min-height: 44px; }
+.wings a, .pill { display: inline-flex; align-items: center; }
+.share { padding-inline: .8rem; }
+summary { display: flex; align-items: center; }
+.more { padding: .6rem 0; }
+/* Bigger hit area for name chips without making rows taller. */
+.chip { padding-block: 11px; margin-block: -11px; }
+th, .game-label, .badge, .kicker { font-size: .75rem; }
+.avatar { font-size: .75rem; }
+.avatar-lg { font-size: 1.1rem; }
+.avatar-xl { font-size: 1.6rem; }
+table.draft { font-size: .8rem; }
+table.draft tbody th, table.draft thead th:first-child { position: sticky; left: 0; z-index: 1; background: var(--paper); }
+.swipe-hint { display: none; font-size: .8rem; margin: 0 0 .3rem; }
+
+@media (max-width: 719px) {
+  html.js .menu-toggle { display: inline-grid; place-items: center; width: 44px; height: 44px; flex: none; order: 3; border: 1px solid var(--wood-2); border-radius: 10px; background: var(--wood-2); color: #fff; cursor: pointer; }
+  .menu-icon, .menu-icon::before, .menu-icon::after { display: block; width: 20px; height: 2px; background: currentColor; border-radius: 2px; transition: transform .2s, opacity .2s; }
+  .menu-icon { position: relative; }
+  .menu-icon::before, .menu-icon::after { content: ''; position: absolute; left: 0; }
+  .menu-icon::before { top: -6px; }
+  .menu-icon::after { top: 6px; }
+  .nav-open .menu-icon { background: transparent; }
+  .nav-open .menu-icon::before { transform: translateY(6px) rotate(45deg); }
+  .nav-open .menu-icon::after { transform: translateY(-6px) rotate(-45deg); }
+  .masthead { gap: .5rem; }
+  .whoami { margin-left: auto; }
+  .whoami > span { display: none; }
+  .whoami select { max-width: 8.5rem; }
+  html.js .wings { display: none; }
+  html.js .nav-open .wings { display: grid; grid-template-columns: 1fr 1fr; gap: .35rem; padding: .25rem 1rem 1rem; max-height: calc(100vh - 4rem); overflow-y: auto; }
+  html.js .nav-open .wings a { justify-content: center; background: var(--wood-2); border-radius: 10px; min-height: 48px; font-size: 1rem; }
+  .swipe-hint { display: block; }
+  .brand-name { font-size: .95rem; }
+}
+
+/* Tablets: give wide tables and cards a bit more room. */
+@media (min-width: 720px) and (max-width: 1023px) {
+  main, .masthead, .wings, .updated { padding-inline: 1.5rem; }
+  .wings { justify-content: center; flex-wrap: wrap; overflow: visible; }
+}
+.pick-no, .pick-meta { font-size: .72rem; }
+.brand { min-height: 44px; }
+.more { min-height: 44px; display: inline-flex; align-items: center; }
+.crumbs a, .site-footer a, .jump a, .chip-name { display: inline-block; padding-block: .8rem; margin-block: -.8rem; }
+.jump { display: flex; flex-wrap: wrap; align-items: center; column-gap: .5rem; }
+.jump a { margin-block: 0; padding-block: .75rem; }
+.menu-toggle { -webkit-tap-highlight-color: transparent; }
+@media (max-width: 719px) {
+  html.js .nav-open .wings a[aria-current='page'] { background: var(--gold); color: var(--wood); }
+  .brand-name { white-space: normal; line-height: 1.15; }
+  .brand-sub { font-size: .62rem; letter-spacing: .08em; }
+  .whoami select { max-width: 7.5rem; }
+}

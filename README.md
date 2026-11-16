@@ -43,7 +43,7 @@ Yahoo Fantasy API ──yfpy──▶ data/league.sqlite ──museum stats─�
 * `site/` is an Astro static site (no client framework, just a little vanilla JS).
 * `.github/workflows/update.yml` runs every **Tuesday at 13:00 UTC** (after MNF), on manual dispatch, and on pushes to `main`. It does the following:
   1. Ingests new data (scheduled and manual runs only, and only once the token secret exists).
-  2. Commits `data/league.sqlite`.
+  2. Commits `data/league.sqlite` and any new team logos.
   3. Recomputes the stats.
   4. Builds and deploys to Pages.
 
@@ -60,6 +60,8 @@ Yahoo Fantasy API ──yfpy──▶ data/league.sqlite ──museum stats─�
   * If the cookies have expired, the run fails before deploying, so the site keeps its last good build.
 
   Both workflows share a concurrency group, so a live deploy never overlaps the Tuesday run. You can trigger a live refresh at any time with `gh workflow run live.yml`.
+
+**Team logos:** the scheduled scrape reads each team's Yahoo logo from the standings and teams pages, and copies it into `site/public/logos/<season>/<team_id>-<hash>.<ext>`. A new file is downloaded only when the logo URL changes. The site never hotlinks Yahoo, so the logos keep working if Yahoo's URLs change. Each manager shows their latest logo across the site. Archives (and the Hall of Champions banners) show the logo from that season. Default Yahoo avatars, and missing logos, fall back to initials. Live runs never touch logos.
 
 **Sample data:** until `data/league.sqlite` exists, the site is built from a generated sample league (`python -m museum sample`). A banner on the site says so. The first successful Yahoo ingest swaps it out automatically.
 
@@ -174,6 +176,6 @@ CLI reference: `python -m museum {sample|ingest|stats|managers} --help`. Useful 
 museum/            Python package: ingest (yfpy), stats, sample generator, OAuth helpers
 scripts/auth.py    One-time Yahoo OAuth helper
 data/              league.sqlite (committed once ingested), managers.yaml
-site/              Astro site (pages in site/src/pages)
+site/              Astro site (pages in site/src/pages, team logos in site/public/logos)
 .github/workflows  update.yml (weekly ingest + deploy), live.yml (game-day live scores), ci.yml (PR checks)
 ```

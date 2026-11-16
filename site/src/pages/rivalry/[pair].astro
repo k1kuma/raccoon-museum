@@ -1,6 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import Chip from '../../components/Chip.astro';
+import Avatar from '../../components/Avatar.astro';
 import ShareButton from '../../components/ShareButton.astro';
 import { rivalries, url, fmt, name, mgr } from '../../lib/data';
 
@@ -14,9 +15,9 @@ const path = `rivalry/${pair}`;
 <Base title={`${name(r.a)} vs ${name(r.b)}`} description={r.caption} wing="rivalry">
   <nav class="crumbs"><a href={url('rivalry')}>Rivalry Room</a> / <span>{name(r.a)} vs {name(r.b)}</span></nav>
   <header class="page-head faceoff" data-pair={pair}>
-    <div class="side"><span class="avatar avatar-xl" style={`--c:${mgr(r.a).color}`}>{mgr(r.a).initials}</span><a class="chip-name" href={url(`managers/${r.a}`)}>{name(r.a)}</a><span class="big">{r.aWins}</span></div>
+    <div class="side"><Avatar id={r.a} size="xl" /><a class="chip-name" href={url(`managers/${r.a}`)}>{name(r.a)}</a><span class="big">{r.aWins}</span></div>
     <span class="vs-big">vs</span>
-    <div class="side"><span class="avatar avatar-xl" style={`--c:${mgr(r.b).color}`}>{mgr(r.b).initials}</span><a class="chip-name" href={url(`managers/${r.b}`)}>{name(r.b)}</a><span class="big">{r.bWins}</span></div>
+    <div class="side"><Avatar id={r.b} size="xl" /><a class="chip-name" href={url(`managers/${r.b}`)}>{name(r.b)}</a><span class="big">{r.bWins}</span></div>
   </header>
   <div class="meter" role="img" aria-label={`${name(r.a)} ${r.aWins} wins, ${name(r.b)} ${r.bWins} wins`}>
     <span style={`width:${(r.aWins / total) * 100}%;background:${mgr(r.a).color}`}></span>

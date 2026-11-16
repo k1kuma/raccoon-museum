@@ -156,3 +156,44 @@ def test_clean_cookies_tolerates_pasted_quotes_and_prefix():
     assert scrape.clean_cookies("'A=1; B=2'\n") == "A=1; B=2"
     assert scrape.clean_cookies("Cookie: A=1; B=2") == "A=1; B=2"
     assert scrape.clean_cookies("-b 'A=1'") == "A=1"
+
+
+def test_scrape_logos_only_from_team_links_or_single_team_rows():
+    lid = "705220"
+    html = f"""<table>
+    <tr><td><a href="/f1/{lid}/3"><img src="https://yahoofantasysports-res.cloudinary.com/image/upload/t_s32sq/fantasy-logos/a.png"></a>
+      <a href="/f1/{lid}/3">Roomba Raiders</a></td></tr>
+    <tr><td><img src="//s.yimg.com/cv/apiv2/default/nfl/nfl_4.png"></td><td><a href="/f1/{lid}/4">Dyson</a></td></tr>
+    <tr><td><a href="/f1/{lid}/players/123"><img src="https://s.yimg.com/iu/headshot.png"></a></td></tr>
+    </table>
+    <ul><li><img src="https://s.yimg.com/x/y.png"><a href="/f1/{lid}/5">A</a><a href="/f1/{lid}/6">B</a></li></ul>"""
+    logos = scrape.parse_logos(html, lid)
+    assert logos == {3: "https://yahoofantasysports-res.cloudinary.com/image/upload/t_s32sq/fantasy-logos/a.png",
+                     4: "https://s.yimg.com/cv/apiv2/default/nfl/nfl_4.png"}
+    assert scrape.is_default_logo(logos[4]) and not scrape.is_default_logo(logos[3])
+
+
+def test_logos_latest_by_default_and_per_season(tmp_path, monkeypatch):
+    import sqlite3
+    db_path = sample.generate(tmp_path / "s.sqlite", today=date(2026, 11, 14))
+    with sqlite3.connect(db_path) as conn:
+        key = conn.execute("SELECT team_key FROM teams WHERE season=2026 ORDER BY team_id LIMIT 1").fetchone()[0]
+        tid = int(key.rsplit(".", 1)[1])
+        guid = conn.execute("SELECT manager_guid FROM teams WHERE team_key=?", (key,)).fetchone()[0]
+        old = conn.execute("SELECT season, team_id FROM teams WHERE manager_guid=? AND season=2025", (guid,)).fetchone()
+        conn.execute("UPDATE teams SET logo_url='https://x/new.png' WHERE team_key=?", (key,))
+        conn.execute("UPDATE teams SET logo_url='https://x/old.png' WHERE season=2025 AND team_id=?", (old[1],))
+        conn.execute("UPDATE teams SET logo_url='https://s.yimg.com/default/nfl.png' WHERE season=2026 AND team_id!=?",
+                     (tid,))
+    logos = tmp_path / "logos"
+    for season, team, url in ((2026, tid, "https://x/new.png"), (2025, old[1], "https://x/old.png")):
+        (logos / str(season)).mkdir(parents=True, exist_ok=True)
+        (logos / str(season) / f"{scrape.logo_stem(team, url)}.png").write_bytes(b"png")
+    monkeypatch.setattr(stats.config, "LOGOS_DIR", logos)
+    stats.build(db_path, tmp_path / "out")
+    meta = json.loads((tmp_path / "out" / "meta.json").read_text())
+    with_logo = [m for m in meta["managers"] if m["logo"]]
+    assert len(with_logo) == 1 and with_logo[0]["logo"].startswith(f"logos/2026/{tid}-")
+    mid = with_logo[0]["id"]
+    assert meta["logos"]["2025"][mid].startswith(f"logos/2025/{old[1]}-")
+    assert len(meta["logos"]["2026"]) == 1  # default Yahoo avatars fall back to initials

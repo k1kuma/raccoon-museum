@@ -1,6 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import Chip from '../../components/Chip.astro';
+import Avatar from '../../components/Avatar.astro';
 import ShareButton from '../../components/ShareButton.astro';
 import { archives, url, fmt, name, recordStr, mgr } from '../../lib/data';
 
@@ -35,7 +36,7 @@ const older = archives[idx + 1];
           {s.standings.map((t: any) => (
             <tr data-manager={t.manager}>
               <td>{s.finished && t.rank === 1 ? '🏆' : t.rank}</td>
-              <td><Chip id={t.manager} small /></td>
+              <td><Chip id={t.manager} small season={s.season} /></td>
               <td>{t.team}</td>
               <td>{recordStr(t.wins, t.losses, t.ties)}</td>
               <td class="num">{fmt(t.pointsFor)}</td>
@@ -62,8 +63,8 @@ const older = archives[idx + 1];
               return (
                 <div class:list={['game', { title: g.label === 'Championship' }]}>
                   {g.label && <span class="game-label">{g.label}</span>}
-                  <div class:list={['side', { win: aWon }]} data-manager={g.a}><Chip id={g.a} small /><span class="num">{fmt(g.aPoints)}</span></div>
-                  <div class:list={['side', { win: !aWon }]} data-manager={g.b}><Chip id={g.b} small /><span class="num">{fmt(g.bPoints)}</span></div>
+                  <div class:list={['side', { win: aWon }]} data-manager={g.a}><Chip id={g.a} small season={s.season} /><span class="num">{fmt(g.aPoints)}</span></div>
+                  <div class:list={['side', { win: !aWon }]} data-manager={g.b}><Chip id={g.b} small season={s.season} /><span class="num">{fmt(g.bPoints)}</span></div>
                 </div>
               );
             })}
@@ -78,9 +79,10 @@ const older = archives[idx + 1];
     {s.draftBoard.length === 0 ? <p class="empty">No draft results on file.</p> : (
       <>
         <p class="muted">Ranked by points among drafted players{s.finished ? '' : ' so far'}. <span class="tag tag-steal">Steal</span> <span class="tag tag-bust">Bust</span></p>
+        <p class="swipe-hint muted" aria-hidden="true">Swipe the board sideways →</p>
         <div class="draft-scroll">
           <table class="draft">
-            <thead><tr><th>Rd</th>{s.draftOrder.map((id: string) => <th data-manager={id}><span class="avatar" style={`--c:${mgr(id).color}`}>{mgr(id).initials}</span><span class="sr">{name(id)}</span></th>)}</tr></thead>
+            <thead><tr><th>Rd</th>{s.draftOrder.map((id: string) => <th data-manager={id}><Avatar id={id} season={s.season} /><span class="sr">{name(id)}</span></th>)}</tr></thead>
             <tbody>
               {s.draftBoard.map((rd: any) => {
                 const byMgr = new Map(rd.picks.map((p: any) => [p.manager, p]));
