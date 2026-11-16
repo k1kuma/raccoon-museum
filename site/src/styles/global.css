@@ -437,10 +437,12 @@ html.js #season-lab:not(.ready) .season-dive:not([data-default]) { display: none
 .dive-block { margin: .75rem 0 1.25rem; }
 .dive-block h4 { font-family: var(--head); text-transform: uppercase; font-size: .85rem; letter-spacing: .04em; margin: 0 0 .35rem; padding-left: .5rem; border-left: 3px solid var(--accent); }
 .dive-sum { margin: 0 0 .5rem; font-size: .92rem; }
-.trend { margin: 0; max-width: 760px; }
+.trend { margin: 0; width: 100%; }
+.trend astro-island { display: block; width: 100%; }
 .viz { position: relative; width: 100%; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); }
 .viz-trend { height: 260px; }
 @media (min-width: 768px) { .viz-trend { height: 300px; } }
+@media (min-width: 1024px) { .viz-trend { height: 340px; } }
 .viz-box { position: relative; width: 100%; height: 100%; }
 .viz svg { display: block; overflow: visible; }
 .viz svg:focus { outline: none; }
@@ -454,8 +456,7 @@ html.js #season-lab:not(.ready) .season-dive:not([data-default]) { display: none
 .viz-val { font-size: 12px; font-weight: 700; fill: var(--ink); font-variant-numeric: tabular-nums; }
 .viz-tt { position: absolute; z-index: 5; pointer-events: none; background: var(--wood); color: #fff; border-radius: 4px;
   padding: .45rem .6rem; font: 12.5px/1.35 var(--sans); box-shadow: 0 4px 14px rgb(0 0 0 / 22%);
-  width: max-content; max-width: min(230px, calc(50% - 14px)); }
-.viz-bars .viz-tt { max-width: min(240px, 70%); }
+  width: max-content; max-width: min(240px, calc(100% - 8px)); }
 .viz-tt-h { display: flex; justify-content: space-between; gap: .6rem; align-items: baseline; font-family: var(--head); font-weight: 700;
   text-transform: uppercase; letter-spacing: .03em; font-size: 12.5px; border-bottom: 2px solid var(--accent); padding-bottom: .2rem; margin-bottom: .25rem; }
 .viz-tt-sub { font-weight: 400; text-transform: none; letter-spacing: 0; color: #c9ccd1; }
@@ -467,7 +468,8 @@ html.js #season-lab:not(.ready) .season-dive:not([data-default]) { display: none
 .viz-res { padding: 0 .3rem; border-radius: 3px; background: #555; }
 .viz-res.res-W { background: var(--green); } .viz-res.res-L { background: var(--accent); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-.chart-wrap { margin: .25rem 0 1rem; max-width: 760px; }
+.chart-wrap { margin: .25rem 0 1rem; }
+.chart-wrap astro-island, .carry astro-island { display: block; width: 100%; }
 /* "?" info tooltips */
 .infotip { position: relative; display: inline-block; vertical-align: middle; margin-left: .2rem; }
 .infotip-btn { position: relative; width: 20px; height: 20px; padding: 0; border-radius: 50%; border: 1px solid currentColor;

@@ -8,8 +8,9 @@ import { AxisBottom, AxisLeft } from '@visx/axis';
 import { Group } from '@visx/group';
 import { curveMonotoneX } from '@visx/curve';
 import { localPoint } from '@visx/event';
-import { useTooltip, Tooltip } from '@visx/tooltip';
-import { useDismiss, sideStyle } from './useDismiss';
+import { useTooltip } from '@visx/tooltip';
+import { useDismiss } from './useDismiss';
+import Tip from './Tip';
 
 export interface Week { week: number; pts: number; med: number; avg: number; res: string; opp?: string }
 interface Props { weeks: Week[]; label: string }
@@ -119,8 +120,7 @@ function Chart({ weeks, label, width, height }: Props & { width: number; height:
         </Group>
       </svg>
       {sel && tooltipLeft != null && (
-        <Tooltip unstyled applyPositionStyle className="viz-tt" top={M.top} left={0}
-          style={{ ...sideStyle(tooltipLeft, width) }}>
+        <Tip x={tooltipLeft} y={M.top} width={width} place="side">
           <div className="viz-tt-h">
             <span>Week {sel.week}{sel.opp && <span className="viz-tt-sub"> vs {sel.opp}</span>}</span>
             <b className={`viz-res res-${sel.res}`}>{sel.res}</b>
@@ -130,7 +130,7 @@ function Chart({ weeks, label, width, height }: Props & { width: number; height:
             <dt>Median</dt><dd>{f2(sel.med)} <span className={sel.pts >= sel.med ? 'pos' : 'neg'}>{diff(sel.pts - sel.med)}</span></dd>
             <dt>Average</dt><dd>{f2(sel.avg)} <span className={sel.pts >= sel.avg ? 'pos' : 'neg'}>{diff(sel.pts - sel.avg)}</span></dd>
           </dl>
-        </Tooltip>
+        </Tip>
       )}
       <p className="sr-only" aria-live="polite">{say}</p>
     </div>

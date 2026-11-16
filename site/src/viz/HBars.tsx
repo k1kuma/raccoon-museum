@@ -2,8 +2,9 @@ import { useRef } from 'react';
 import { ParentSize } from '@visx/responsive';
 import { scaleBand, scaleLinear } from '@visx/scale';
 import { Bar } from '@visx/shape';
-import { useTooltip, Tooltip } from '@visx/tooltip';
-import { useDismiss, sideStyle } from './useDismiss';
+import { useTooltip } from '@visx/tooltip';
+import { useDismiss } from './useDismiss';
+import Tip from './Tip';
 
 export interface Row { key: string; label: string; sub?: string; value: number; display: string; color?: string;
   tipTitle: string; tipLines: string[] }
@@ -34,10 +35,9 @@ function Bars({ rows, label, max, width, height }: Props & { width: number; heig
   const chars = Math.floor((labelW - 10) / 6.6);
   const clip = (s: string) => (s.length > chars ? `${s.slice(0, chars - 1)}…` : s);
   const show = (i: number) => showTooltip({
-    tooltipData: i, tooltipLeft: labelW + Math.max(0, x(rows[i].value)), tooltipTop: (y(i) ?? 0) + y.bandwidth() / 2,
+    tooltipData: i, tooltipLeft: labelW + Math.max(2, x(Math.max(0, rows[i].value))) / 2, tooltipTop: y(i) ?? 0,
   });
   const sel = tooltipOpen && tooltipData != null ? rows[tooltipData] : null;
-  const below = tooltipTop != null && tooltipTop > height / 2;
 
   return (
     <div ref={box} className="viz-box">
@@ -65,14 +65,10 @@ function Bars({ rows, label, max, width, height }: Props & { width: number; heig
         })}
       </svg>
       {sel && tooltipLeft != null && tooltipTop != null && (
-        <Tooltip unstyled applyPositionStyle className="viz-tt" left={0} top={0}
-          style={{ ...sideStyle(Math.min(tooltipLeft, width - 60), width),
-            top: tooltipTop + (below ? -14 : 14),
-            transform: [sideStyle(Math.min(tooltipLeft, width - 60), width).transform, below ? 'translateY(-100%)' : '']
-              .filter(Boolean).join(' ') || undefined }}>
+        <Tip x={tooltipLeft} y={tooltipTop} width={width} place="above">
           <div className="viz-tt-h"><span>{sel.tipTitle}</span></div>
           <ul>{sel.tipLines.map((l) => <li key={l}>{l}</li>)}</ul>
-        </Tooltip>
+        </Tip>
       )}
     </div>
   );
