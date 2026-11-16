@@ -99,6 +99,47 @@ def test_all_play_and_rivalry_split(tmp_path):
         assert r["aWins"] + r["bWins"] + r["ties"] == r["meetings"]
 
 
+def test_week_marks_and_record_vs_median_and_average():
+    # Even count: median is the mean of the middle two; skewed scores pull the average away from it.
+    assert stats.week_marks([100, 90, 80, 70]) == (85, 85)
+    assert stats.week_marks([150, 90, 80, 70]) == (85, 97.5)
+    assert stats.week_marks([90, 80, 70]) == (80, 80)
+    assert [stats.vs_mark(p, 85) for p in (100, 85, 70)] == ["W", "T", "L"]
+
+
+def test_carry_share_concentration():
+    c = stats.carry_share({"a": 60, "b": 20, "c": 10, "d": 10, "e": -4})
+    assert c["total"] == 100  # negative scores count as zero, not as negative share
+    assert c["top1"] == 0.6 and c["top3"] == 0.9
+    assert c["hhi"] == round(0.36 + 0.04 + 0.01 + 0.01, 4)
+    even = stats.carry_share({k: 10 for k in "abcde"})
+    assert even["top1"] == 0.2 and even["effective"] == 5
+    assert stats.carry_share({})["total"] == 0
+
+
+def test_benchmarks_and_carry_use_only_final_regular_weeks(tmp_path):
+    db_path = sample.generate(tmp_path / "s.sqlite", today=date(2026, 11, 14))
+    stats.build(db_path, tmp_path)
+    managers = json.loads((tmp_path / "managers.json").read_text())
+    archives = {a["season"]: a for a in json.loads((tmp_path / "archives.json").read_text())}
+    for m in managers:
+        for s in m["seasons"]:
+            if not s["trend"]:
+                continue
+            weeks = s["trend"]["weeks"]
+            last = archives[s["season"]]["lastCompletedWeek"]
+            assert all(w["week"] <= last for w in weeks)
+            med = s["vsMedian"].split("-")
+            assert int(med[0]) == sum(w["pts"] > w["med"] for w in weeks) == s["trend"]["aboveMedian"]
+            # True record = head-to-head + median games, i.e. two games per week.
+            assert sum(map(int, s["trueRecord"].split("-"))) == 2 * len(weeks)
+            c = s["carry"]
+            assert 0 < c["top1"] <= c["top3"] <= 1
+            assert abs(sum(p["share"] for p in c["players"]) + c["other"]["share"] - 1) < 0.01
+    lobby = json.loads((tmp_path / "lobby.json").read_text())
+    assert any(h["kicker"] == "Carry job" for h in lobby["headlines"])
+
+
 def test_live_week_shows_in_lobby_but_never_touches_records(tmp_path):
     import sqlite3
     from datetime import datetime, timezone

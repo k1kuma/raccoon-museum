@@ -39,6 +39,38 @@ def record_str(w: int, l: int, t: int = 0) -> str:
     return f"{w}-{l}" + (f"-{t}" if t else "")
 
 
+def week_marks(scores: list[float]) -> tuple[float, float]:
+    """(median, average) of one week's scores across the whole league."""
+    xs = sorted(scores)
+    n = len(xs)
+    if not n:
+        return 0.0, 0.0
+    med = xs[n // 2] if n % 2 else (xs[n // 2 - 1] + xs[n // 2]) / 2
+    return round(med, 2), round(sum(xs) / n, 2)
+
+
+def vs_mark(points: float, mark: float) -> str:
+    """Result of 'playing' the league median or average: W, L or T (exact tie)."""
+    return "W" if points > mark else "L" if points < mark else "T"
+
+
+def carry_share(player_points: dict[str, float]) -> dict:
+    """How concentrated a team's starting points are.
+
+    shares: each player's fraction of the starters' total; top1/top3: fraction from the best 1 and 3 players;
+    hhi: Herfindahl index (sum of squared shares; 1 = one player scored everything); effective: 1 / hhi, the
+    number of equally productive starters that would give the same concentration."""
+    pos = {k: max(0.0, v) for k, v in player_points.items()}
+    total = sum(pos.values())
+    if total <= 0:
+        return {"total": 0.0, "shares": {}, "top1": 0.0, "top3": 0.0, "hhi": 0.0, "effective": 0.0}
+    shares = {k: v / total for k, v in pos.items()}
+    ranked = sorted(shares.values(), reverse=True)
+    hhi = sum(x * x for x in ranked)
+    return {"total": round(total, 2), "shares": shares, "top1": round(ranked[0], 4),
+            "top3": round(sum(ranked[:3]), 4), "hhi": round(hhi, 4), "effective": round(1 / hhi, 2)}
+
+
 class Museum:
     def __init__(self, conn: sqlite3.Connection, manager_config: dict, logos_dir: Path | None = None):
         self.conn = conn
@@ -371,6 +403,171 @@ class Museum:
             p["rate"] = round(p["apps"] / p["seasons"], 3) if p["seasons"] else None
         return prof
 
+    # ---------- median / average benchmarks ----------
+    def final_regular(self) -> list[dict]:
+        """Regular-season games from completed weeks only (in-progress weeks never count)."""
+        out = []
+        for r in self.games("regular"):
+            s = self.seasons.get(r["season"], {})
+            lc = s.get("last_completed_week")
+            if not s.get("is_finished") and lc and r["week"] > lc:
+                continue
+            out.append(r)
+        return out
+
+    def benchmarks(self) -> tuple[dict, dict]:
+        """League median/average per week, and per team-season: record vs the median, vs the average, the
+        'true record' (head-to-head plus median) and a weekly trend."""
+        by_week = defaultdict(list)
+        for r in self.final_regular():
+            by_week[(r["season"], r["week"])].append(r)
+        marks = {k: week_marks([r["points"] for r in rows]) for k, rows in by_week.items()}
+        idx = {"W": 0, "L": 1, "T": 2}
+        teams: dict[str, dict] = {}
+        for key in sorted(by_week):
+            med, avg = marks[key]
+            for r in by_week[key]:
+                o = teams.setdefault(r["team_key"], {"team_key": r["team_key"], "season": r["season"],
+                                                     "manager": r["manager"], "team": r["team_name"],
+                                                     "med": [0, 0, 0], "avg": [0, 0, 0], "h2h": [0, 0, 0],
+                                                     "trend": []})
+                o["med"][idx[vs_mark(r["points"], med)]] += 1
+                o["avg"][idx[vs_mark(r["points"], avg)]] += 1
+                if r["result"] in idx:
+                    o["h2h"][idx[r["result"]]] += 1
+                o["trend"].append({"week": key[1], "pts": r["points"], "med": med, "avg": avg,
+                                   "res": r["result"], "opp": r["opponent"]})
+        for o in teams.values():
+            o["true"] = [a + b for a, b in zip(o["h2h"], o["med"])]
+            o["weeks"] = len(o["trend"])
+            o["last_week"] = o["trend"][-1]["week"] if o["trend"] else 0
+            for k in ("med", "avg", "true"):
+                w, l, t = o[k]
+                o[k + "Pct"] = round((w + 0.5 * t) / (w + l + t), 3) if (w + l + t) else 0
+        return marks, teams
+
+    def carry(self) -> dict[str, dict]:
+        """Per team-season (regular season, completed weeks, starters only): who scored the points."""
+        games = {(r["season"], r["week"], r["team_key"]): r for r in self.final_regular()}
+        grouped = defaultdict(list)
+        for p in self.slots:
+            key = (p["season"], p["week"], p["team_key"])
+            if key in games:
+                grouped[key].append(p)
+        per_team: dict[str, dict] = defaultdict(lambda: {"players": {}, "weeks": []})
+        for key in sorted(grouped):
+            players = grouped[key]
+            starters = [p for p in players if p["selected_position"] not in lineup.BENCH_SLOTS]
+            bench = [p for p in players if p["selected_position"] == "BN"]
+            T = per_team[key[2]]
+            T["weeks"].append((games[key], starters, bench))
+            for p in starters:
+                e = T["players"].setdefault(p["player_key"], {"key": p["player_key"], "name": p["player_name"],
+                                                              "pos": p["primary_position"], "pts": 0.0,
+                                                              "starts": 0})
+                e["pts"] += p["points"] or 0
+                e["starts"] += 1
+        out = {}
+        for tk, T in per_team.items():
+            c = carry_share({k: e["pts"] for k, e in T["players"].items()})
+            if not c["total"]:
+                continue
+            ranked = sorted(T["players"].values(), key=lambda e: -e["pts"])
+            top = ranked[0]
+            actual, without = [0, 0, 0], [0, 0, 0]
+            idx = {"W": 0, "L": 1, "T": 2}
+            for g, starters, bench in T["weeks"]:
+                pts = g["points"]
+                x = next((p for p in starters if p["player_key"] == top["key"]), None)
+                if x:
+                    allowed = lineup.slot_allows(x["selected_position"])
+                    repl = max((b["points"] or 0 for b in bench
+                                if lineup.player_positions(b["eligible_positions"], b["primary_position"]) & allowed),
+                               default=0.0)
+                    pts = pts - (x["points"] or 0) + repl
+                if g["result"] in idx:
+                    actual[idx[g["result"]]] += 1
+                without[idx[vs_mark(round(pts, 2), g["opponent_points"] or 0)]] += 1
+            view = lambda e: {"name": e["name"], "pos": e["pos"], "pts": round(e["pts"], 2),  # noqa: E731
+                              "share": round(c["shares"][e["key"]], 4), "starts": e["starts"]}
+            shown = [view(e) for e in ranked[:8]]
+            g0 = T["weeks"][0][0]
+            out[tk] = {"team_key": tk, "season": g0["season"], "manager": g0["manager"], "team": g0["team_name"],
+                       "weeks": len(T["weeks"]), "last_week": T["weeks"][-1][0]["week"], "total": c["total"],
+                       "top1": c["top1"], "top3": c["top3"], "hhi": c["hhi"], "effective": c["effective"],
+                       "top": view(top), "players": shown,
+                       "other": {"pts": round(c["total"] - sum(p["pts"] for p in shown if p["pts"] > 0), 2),
+                                 "share": round(max(0.0, 1 - sum(p["share"] for p in shown)), 4)},
+                       "actual": record_str(*actual), "without": record_str(*without),
+                       "lostWins": actual[0] - without[0]}
+        return out
+
+    def week_carry(self, season: int, week: int) -> dict | None:
+        """The starter with the biggest share of his team's points in one week (non-consolation games)."""
+        games = {r["team_key"]: r for r in self.games("all") if r["season"] == season and r["week"] == week}
+        best = None
+        by_team = defaultdict(list)
+        for p in self.slots:
+            if p["season"] == season and p["week"] == week and p["team_key"] in games \
+                    and p["selected_position"] not in lineup.BENCH_SLOTS:
+                by_team[p["team_key"]].append(p)
+        for tk, starters in by_team.items():
+            total = sum(max(0.0, p["points"] or 0) for p in starters)
+            if total <= 0:
+                continue
+            p = max(starters, key=lambda p: p["points"] or 0)
+            share = (p["points"] or 0) / total
+            if not best or share > best["share"]:
+                best = {"team_key": tk, "manager": games[tk]["manager"], "player": p["player_name"],
+                        "pos": p["primary_position"], "pts": p["points"] or 0, "total": total, "share": share,
+                        "result": games[tk]["result"]}
+        return best
+
+    def season_bench(self, team_key: str) -> dict:
+        o, c = self.bm.get(team_key), self.carries.get(team_key)
+        out = {"vsMedian": None, "vsAverage": None, "trueRecord": None, "trend": None, "carry": None}
+        if o:
+            above = sum(1 for w in o["trend"] if w["pts"] > w["med"])
+            out.update({"vsMedian": record_str(*o["med"]), "vsAverage": record_str(*o["avg"]),
+                        "trueRecord": record_str(*o["true"]),
+                        "trend": {"weeks": [{k: w[k] for k in ("week", "pts", "med", "avg", "res")} for w in o["trend"]],
+                                  "aboveMedian": above, "aboveAverage": o["avg"][0],
+                                  "summary": f"Above the median in {above} of {o['weeks']} regular-season weeks"
+                                             + ("" if self.finished(o["season"]) else " so far") + "."}})
+        if c:
+            out["carry"] = {k: c[k] for k in ("top1", "top3", "hhi", "effective", "total", "players", "other",
+                                              "actual", "without", "lostWins", "weeks")} | {
+                "topName": c["top"]["name"], "caption": self.carry_caption(c)}
+        return out
+
+    def career_bench(self, mid: str) -> dict:
+        mine = [o for o in self.bm.values() if o["manager"] == mid]
+        tot = {k: [sum(o[k][i] for o in mine) for i in range(3)] for k in ("med", "avg", "true")}
+        return {"vsMedian": record_str(*tot["med"]) if mine else None,
+                "vsAverage": record_str(*tot["avg"]) if mine else None,
+                "trueRecord": record_str(*tot["true"]) if mine else None}
+
+    def mark_caption(self, o: dict, kind: str) -> str:
+        done = self.finished(o["season"])
+        when = f"in {o['season']}" if done else f"in {o['season']} so far (through Week {o['last_week']})"
+        label = {"med": "the league median", "avg": "the league average"}[kind]
+        w, l, t = o[kind]
+        return (f"{self.name(o['manager'])} ({o['team']}) beat {label} in {w} of {o['weeks']} weeks {when}: "
+                f"{record_str(w, l, t)} against {label}. Head-to-head they went "
+                f"{record_str(*o['h2h'])}; counting both, their true record is {record_str(*o['true'])}.")
+
+    def carry_caption(self, c: dict, lead: str = "") -> str:
+        done = self.finished(c["season"])
+        when = f"in {c['season']}" if done else f"in {c['season']} so far (through Week {c['last_week']})"
+        top = c["top"]
+        txt = (f"{lead}{top['name']} ({top['pos']}) scored {f2(top['pts'])} of the {f2(c['total'])} starting "
+               f"points for {self.name(c['manager'])} ({c['team']}) {when} — {round(top['share'] * 100)}%. "
+               f"The top three starters combined for {round(c['top3'] * 100)}%.")
+        if c["actual"] != c["without"]:
+            txt += (f" Replace {top['name']} with the best eligible bench player each week and {c['actual']} "
+                    f"becomes roughly {c['without']}.")
+        return txt
+
     # ---------- categories ----------
     def seg_category(self, slug, title, blurb, build) -> dict:
         """A category with Regular / Playoffs / All variants; `entries` is the regular-season default."""
@@ -497,6 +694,34 @@ class Museum:
                                   [self.entry(o["luck"], f"+{o['luck']:.2f} wins", ap_caption(o, "Blessed. "),
                                               o["manager"], o["season"])
                                    for o in sorted(ap, key=lambda o: -o["luck"])[:15] if o["luck"] > 0]))
+        bm = [o for o in self.bm.values() if o["weeks"] >= 3]
+        cats.append(self.category("median-records", "Best Records vs the Median",
+                                  "Every week, a bonus game against the league's median score. Beat it and you win.",
+                                  [self.entry(o["medPct"], record_str(*o["med"]), self.mark_caption(o, "med"),
+                                              o["manager"], o["season"])
+                                   for o in sorted(bm, key=lambda o: (-o["medPct"], -o["med"][0]))[:15]]))
+        cats.append(self.category("average-records", "Best Records vs the Average",
+                                  "The same idea, against the week's league-average score.",
+                                  [self.entry(o["avgPct"], record_str(*o["avg"]), self.mark_caption(o, "avg"),
+                                              o["manager"], o["season"])
+                                   for o in sorted(bm, key=lambda o: (-o["avgPct"], -o["avg"][0]))[:15]]))
+        cats.append(self.category("true-records", "Best True Records",
+                                  "Head-to-head record plus record vs the median — two games a week.",
+                                  [self.entry(o["truePct"], record_str(*o["true"]), self.mark_caption(o, "med"),
+                                              o["manager"], o["season"])
+                                   for o in sorted(bm, key=lambda o: (-o["truePct"], -o["true"][0]))[:15]]))
+        cv = [c for c in self.carries.values() if c["weeks"] >= 3]
+        cats.append(self.category("most-carried", "Most Carried Teams",
+                                  "Biggest share of a team's regular-season starting points from one player.",
+                                  [self.entry(c["top1"], f"{round(c['top1'] * 100)}%",
+                                              self.carry_caption(c, "One-man show. "), c["manager"], c["season"],
+                                              player=c["top"]["name"])
+                                   for c in sorted(cv, key=lambda c: -c["top1"])[:15]]))
+        cats.append(self.category("most-balanced", "Most Balanced Teams",
+                                  "Smallest share of regular-season starting points from the top three players.",
+                                  [self.entry(c["top3"], f"Top 3: {round(c['top3'] * 100)}%",
+                                              self.carry_caption(c, "Everybody eats. "), c["manager"], c["season"])
+                                   for c in sorted(cv, key=lambda c: (c["top3"], c["top1"]))[:15]]))
 
         # Playoffs only.
         cats.append(self.category("playoff-explosions", "Biggest Playoff Performances", "Clutch, defined.",
@@ -849,7 +1074,9 @@ class Museum:
                                                             sum(r["result"] == "T" for r in tpo)) if tpo else None,
                                 "bye": t["season"] in prof.get("byeSeasons", []),
                                 "allPlay": (lambda o: o and {"record": record_str(o["w"], o["l"], o["t"]),
-                                                             "luck": o["luck"]})(allplay.get(t["team_key"])),"season": t["season"], "team": t["name"], "wins": t["wins"], "losses": t["losses"],
+                                                             "luck": o["luck"]})(allplay.get(t["team_key"])),
+                                **self.season_bench(t["team_key"]),
+                                "season": t["season"], "team": t["name"], "wins": t["wins"], "losses": t["losses"],
                                 "ties": t["ties"], "pointsFor": t["points_for"], "pointsAgainst": t["points_against"],
                                 "rank": t["final_rank"], "seed": t["playoff_seed"], "finished": bool(s["is_finished"]),
                                 "madePlayoffs": bool(t["playoff_seed"] and s.get("num_playoff_teams")
@@ -916,6 +1143,7 @@ class Museum:
                                        "pct": round((apw + 0.5 * apt) / (apw + apl + apt), 3)
                                        if (apw + apl + apt) else None},
                            "luck": round(sum(o["luck"] for o in my_ap), 2),
+                           **self.career_bench(mid),
                            "avgFinish": round(sum(s["rank"] for s in done) / len(done), 1) if done else None,
                            "bestFinish": min((s["rank"] for s in done), default=None),
                            "benchPoints": round(sum(r["left"] for r in my_bench), 2),
@@ -963,7 +1191,9 @@ class Museum:
             standings = [{"rank": t["final_rank"], "finalRank": t["final_rank"] if s["is_finished"] else None, "manager": self.mgr(t["team_key"]), "team": t["name"],
                           "wins": t["wins"], "losses": t["losses"], "ties": t["ties"], "pointsFor": t["points_for"],
                           "pointsAgainst": t["points_against"], "seed": t["playoff_seed"], "moves": t["moves"],
-                          "trades": t["trades"], "draftGrade": t["draft_grade"]} for t in teams]
+                          "trades": t["trades"], "draftGrade": t["draft_grade"],
+                          **{k: v for k, v in self.season_bench(t["team_key"]).items() if k in
+                             ("vsMedian", "vsAverage", "trueRecord")}} for t in teams]
             weeks = defaultdict(list)
             for r in self.rows:
                 if r["season"] == season and r["team_key"] < (r["opponent_key"] or ""):
@@ -1032,6 +1262,13 @@ class Museum:
                 heads.append({"kicker": "Bench blunder", "manager": bb["manager"],
                               "text": f"{self.name(bb['manager'])} left {f2(bb['left'])} points on the bench"
                                       + (" — enough to flip the result." if bb["would_have_won"] else ".")})
+            cj = self.week_carry(L["season"], L["week"])
+            if cj and cj["share"] >= 0.25:
+                heads.append({"kicker": "Carry job", "manager": cj["manager"],
+                              "text": f"{cj['player']} ({cj['pos']}) put up {f2(cj['pts'])} of "
+                                      f"{self.name(cj['manager'])}'s {f2(cj['total'])} points — "
+                                      f"{round(cj['share'] * 100)}% of the team"
+                                      + (" — and it still wasn't enough." if cj["result"] == "L" else ".")})
             ranked = sorted(week_rows, key=lambda r: -r["points"])
             if len(ranked) > 1 and ranked[1]["result"] == "L" and ranked[1]["game_type"] == "regular":
                 u = ranked[1]
@@ -1133,6 +1370,8 @@ class Museum:
         active = streaks["regular"][2]
         allplay = self.all_play()
         profile = self.playoff_profile()
+        self.marks, self.bm = self.benchmarks()
+        self.carries = self.carry()
         records = self.record_book(streaks, allplay, profile)
         shame = self.hall_of_shame(bench, drafts, trades, allplay)
         h2h = self.head_to_head()

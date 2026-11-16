@@ -427,3 +427,49 @@ table.draft tbody th { background: var(--paper) !important; }
 @media (min-width: 720px) and (max-width: 1023px) {
   .wings { justify-content: flex-start; }
 }
+
+/* ---------- season deep dive: trend chart + carry bar ---------- */
+.season-pick { display: inline-flex; align-items: center; gap: .5rem; font-family: var(--head); font-weight: 700; text-transform: uppercase; font-size: .8rem; letter-spacing: .04em; color: var(--muted); margin-left: auto; }
+.season-pick select { font: inherit; font-family: var(--sans); font-size: 1rem; text-transform: none; letter-spacing: 0; color: var(--ink); min-height: 44px; padding: .4rem .6rem; border: 1px solid var(--line); border-radius: 3px; background: #fff; }
+.season-dive[hidden] { display: none; }
+html.js #season-lab:not(.ready) .season-dive:not([data-default]) { display: none; }
+.dive-title { font-family: var(--head); font-size: 1.15rem; margin: .75rem 0 .25rem; }
+.dive-block { margin: .75rem 0 1.25rem; }
+.dive-block h4 { font-family: var(--head); text-transform: uppercase; font-size: .85rem; letter-spacing: .04em; margin: 0 0 .35rem; padding-left: .5rem; border-left: 3px solid var(--accent); }
+.dive-sum { margin: 0 0 .5rem; font-size: .92rem; }
+.trend { margin: 0; max-width: 760px; }
+.trend svg { width: 100%; height: auto; display: block; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); }
+.trend .tick line { stroke: #e6e7ea; }
+.trend .tick text, .trend .wk { font: 13px var(--sans); fill: var(--muted); }
+.trend .tick text { text-anchor: end; }
+.trend .wk { text-anchor: middle; }
+.trend .band.up { fill: rgb(19 115 51 / 14%); }
+.trend .band.down { fill: rgb(204 0 0 / 12%); }
+.trend .l-pts { fill: none; stroke: var(--ink); stroke-width: 2.5; stroke-linejoin: round; }
+.trend .l-med { fill: none; stroke: #6b6f76; stroke-width: 2; }
+.trend .l-avg { fill: none; stroke: #6b6f76; stroke-width: 1.5; stroke-dasharray: 5 4; }
+.trend circle { stroke: #fff; stroke-width: 1.5; }
+.trend circle.above { fill: var(--green); }
+.trend circle.below { fill: var(--accent); }
+.trend circle.even { fill: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: .35rem 1rem; font-size: .8rem; color: var(--muted); margin-top: .4rem; }
+.legend i { display: inline-block; width: 18px; height: 0; vertical-align: middle; margin-right: .35rem; border-top: 2.5px solid var(--ink); }
+.legend .k-med { border-top: 2px solid #6b6f76; }
+.legend .k-avg { border-top: 2px dashed #6b6f76; }
+.legend .k-up, .legend .k-down { width: 10px; height: 10px; border: 0; border-radius: 50%; background: var(--green); }
+.legend .k-down { background: var(--accent); }
+.trend-data { margin-top: .4rem; font-size: .9rem; }
+.carry-bar { display: flex; height: 28px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); background: #eee; }
+.carry-bar span { display: block; height: 100%; min-width: 2px; border-right: 1px solid rgb(255 255 255 / 70%); }
+.carry-bar span:last-child { border-right: 0; }
+.carry-list { list-style: none; padding: 0; margin: .5rem 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: .1rem 1.25rem; font-size: .9rem; }
+.carry-list li { display: grid; grid-template-columns: 12px 1fr auto 3rem; gap: .5rem; align-items: center; padding: .3rem 0; border-bottom: 1px solid var(--line); }
+.carry-list i { width: 12px; height: 12px; border-radius: 2px; }
+.carry-list .cl-name { min-width: 0; overflow-wrap: anywhere; }
+.carry-list .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---------- archives: optional benchmark columns ---------- */
+.opt-toggle { cursor: pointer; font: inherit; font-size: .88rem; margin: .25rem 0 .5rem; display: none; }
+html.js .opt-toggle { display: inline-flex; }
+.opt-toggle[aria-pressed="true"] { background: var(--wood); color: #fff; border-color: var(--wood); }
+html.js .has-opt:not(.show-opt) .opt-col { display: none; }

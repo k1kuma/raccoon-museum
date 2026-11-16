@@ -31,9 +31,10 @@ const older = archives[idx + 1];
   <section class="panel" id="standings">
     <div class="panel-head"><h2>{s.finished ? 'Regular-season standings' : `Standings through Week ${s.lastCompletedWeek}`}</h2><ShareButton href={url(`${path}#standings`)} /></div>
     <div class="seg-row"><SegmentLabel segment="regular" /><span class="muted">Record, points and seed are regular season only. Final finish is after the playoffs and consolation bracket.</span></div>
+    <button type="button" class="pill opt-toggle" data-opt-toggle aria-pressed="false" aria-controls="standings-table">Show vs median, vs average &amp; true record</button>
     <div class="table-wrap">
-      <table>
-        <thead><tr><th>Seed</th><th>Manager</th><th>Team</th><th>Record</th><th class="num">PF</th><th class="num">PA</th><th>Final finish</th><th>Moves</th><th>Draft</th></tr></thead>
+      <table id="standings-table" class="has-opt">
+        <thead><tr><th>Seed</th><th>Manager</th><th>Team</th><th>Record</th><th class="opt-col" title="Record in a bonus game each week against the league's median score">vs median</th><th class="opt-col" title="Record against the league's average score each week">vs avg</th><th class="opt-col" title="Head-to-head plus median record">True</th><th class="num">PF</th><th class="num">PA</th><th>Final finish</th><th>Moves</th><th>Draft</th></tr></thead>
         <tbody>
           {s.standings.map((t: any, i: number) => (
             <tr data-manager={t.manager}>
@@ -41,6 +42,9 @@ const older = archives[idx + 1];
               <td><Chip id={t.manager} small season={s.season} /></td>
               <td>{t.team}</td>
               <td>{recordStr(t.wins, t.losses, t.ties)}</td>
+              <td class="opt-col">{t.vsMedian ?? '—'}</td>
+              <td class="opt-col">{t.vsAverage ?? '—'}</td>
+              <td class="opt-col">{t.trueRecord ?? '—'}</td>
               <td class="num">{fmt(t.pointsFor)}</td>
               <td class="num">{fmt(t.pointsAgainst)}</td>
               <td>{t.finalRank ? (t.finalRank === 1 ? '🏆 1st' : ordinal(t.finalRank)) : '—'}</td>
@@ -139,3 +143,21 @@ const older = archives[idx + 1];
     )}
   </section>
 </Base>
+
+<script>
+  const btn = document.querySelector<HTMLButtonElement>('[data-opt-toggle]');
+  const table = document.getElementById('standings-table');
+  const set = (on: boolean) => {
+    table?.classList.toggle('show-opt', on);
+    btn?.setAttribute('aria-pressed', String(on));
+    if (btn) btn.textContent = on ? 'Hide vs median, vs average & true record' : 'Show vs median, vs average & true record';
+  };
+  set(new URLSearchParams(location.search).get('cols') === 'median');
+  btn?.addEventListener('click', () => {
+    const on = btn.getAttribute('aria-pressed') !== 'true';
+    set(on);
+    const u = new URL(location.href);
+    if (on) u.searchParams.set('cols', 'median'); else u.searchParams.delete('cols');
+    history.replaceState(null, '', u);
+  });
+</script>

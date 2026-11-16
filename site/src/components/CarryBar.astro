@@ -1,0 +1,19 @@
+---
+// Stacked bar of a team's starting points by player, with a legend list underneath.
+interface Props { carry: any }
+const { carry } = Astro.props;
+const COLORS = ['#cc0000', '#1d1e1f', '#1d4ed8', '#0f766e', '#a16207', '#7c3aed', '#be185d', '#475569'];
+const parts = [...carry.players.map((p: any, i: number) => ({ ...p, color: COLORS[i % COLORS.length] })),
+  ...(carry.other.share > 0.005 ? [{ name: 'Everyone else', pos: '', pts: carry.other.pts, share: carry.other.share, color: '#c4c6ca', other: true }] : [])];
+const pct = (s: number) => `${Math.round(s * 100)}%`;
+---
+<div class="carry">
+  <div class="carry-bar" role="img" aria-label={`Share of starting points: ${parts.map((p: any) => `${p.name} ${pct(p.share)}`).join(', ')}`}>
+    {parts.map((p: any) => <span style={`width:${(p.share * 100).toFixed(2)}%;background:${p.color}`} title={`${p.name}: ${p.pts.toFixed(1)} pts (${pct(p.share)})`}></span>)}
+  </div>
+  <ol class="carry-list">
+    {parts.map((p: any) => (
+      <li><i style={`background:${p.color}`}></i><span class="cl-name">{p.name}{p.pos && <span class="muted"> {p.pos}</span>}{!p.other && <span class="muted"> · {p.starts} starts</span>}</span><span class="num">{p.pts.toFixed(1)}</span><strong class="num">{pct(p.share)}</strong></li>
+    ))}
+  </ol>
+</div>

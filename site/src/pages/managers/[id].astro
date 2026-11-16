@@ -4,6 +4,8 @@ import Chip from '../../components/Chip.astro';
 import Avatar from '../../components/Avatar.astro';
 import ShareButton from '../../components/ShareButton.astro';
 import SegmentLabel from '../../components/SegmentLabel.astro';
+import TrendChart from '../../components/TrendChart.astro';
+import CarryBar from '../../components/CarryBar.astro';
 import { managers, url, fmt, ordinal } from '../../lib/data';
 
 export function getStaticPaths() {
@@ -12,6 +14,7 @@ export function getStaticPaths() {
 const { m } = Astro.props;
 const c = m.career;
 const path = `managers/${m.id}`;
+const deep = [...m.seasons].reverse().filter((s: any) => s.trend || s.carry);
 ---
 <Base title={`${m.name} — Manager Exhibit`} description={m.caption} wing="managers">
   <nav class="crumbs"><a href={url('managers')}>Manager Exhibits</a> / <span>{m.name}</span></nav>
@@ -31,6 +34,8 @@ const path = `managers/${m.id}`;
     <div class="kpi"><span class="kpi-v">{c.wins}-{c.losses}{c.ties ? `-${c.ties}` : ''}</span><span class="kpi-l">Career record ({(c.pct * 100).toFixed(1)}%)</span></div>
     <div class="kpi"><span class="kpi-v">{c.allPlay.pct !== null ? `${c.allPlay.wins}-${c.allPlay.losses}${c.allPlay.ties ? `-${c.allPlay.ties}` : ''}` : '—'}</span><span class="kpi-l">All-play record{c.allPlay.pct !== null ? ` (${(c.allPlay.pct * 100).toFixed(1)}%)` : ''}</span></div>
     <div class="kpi"><span class="kpi-v">{c.luck > 0 ? '+' : ''}{c.luck.toFixed(1)}</span><span class="kpi-l">Luck (wins vs all-play expected)</span></div>
+    {c.vsMedian && <div class="kpi"><span class="kpi-v">{c.vsMedian}</span><span class="kpi-l">Record vs weekly median (vs average {c.vsAverage})</span></div>}
+    {c.trueRecord && <div class="kpi"><span class="kpi-v">{c.trueRecord}</span><span class="kpi-l">True record (H2H + median)</span></div>}
     <div class="kpi"><span class="kpi-v">{fmt(c.pointsFor, 0)}</span><span class="kpi-l">Points for ({c.regularPpg ? fmt(c.regularPpg, 1) : '—'} per game)</span></div>
     <div class="kpi"><span class="kpi-v">{fmt(c.benchPoints, 0)}</span><span class="kpi-l">Points left on bench ({c.benchCostWins} lost wins)</span></div>
     <div class="kpi"><span class="kpi-v">{c.unluckyLosses}</span><span class="kpi-l">Losses with 2nd-best score</span></div>
@@ -48,6 +53,38 @@ const path = `managers/${m.id}`;
 
   {m.streak && (
     <p class="callout" data-manager={m.id}><span class="badge badge-live">Active streak</span> {m.streak.caption}</p>
+  )}
+
+  {deep.length > 0 && (
+    <section class="panel" id="season-lab">
+      <div class="panel-head"><h2>Season deep dive</h2><ShareButton href={url(`${path}#season-lab`)} /></div>
+      <div class="seg-row"><SegmentLabel segment="regular" />
+        <label class="season-pick">Season
+          <select data-season-select>
+            {deep.map((s: any, i: number) => <option value={s.season} selected={i === 0}>{s.season}{s.finished ? '' : ' (so far)'}</option>)}
+          </select>
+        </label>
+      </div>
+      {deep.map((s: any, i: number) => (
+        <div class="season-dive" data-season-panel={s.season} data-default={i === 0 ? '1' : undefined}>
+          <h3 class="dive-title">{s.season} · {s.team}</h3>
+          {s.trend && (
+            <div class="dive-block">
+              <h4>Weekly scores vs the league</h4>
+              <p class="dive-sum"><strong>{s.trend.summary}</strong> vs median {s.vsMedian} · vs average {s.vsAverage} · head-to-head {s.wins}-{s.losses}{s.ties ? `-${s.ties}` : ''} · true record {s.trueRecord}{s.allPlay ? ` · all-play ${s.allPlay.record} (luck ${s.allPlay.luck > 0 ? '+' : ''}${s.allPlay.luck.toFixed(1)})` : ''}</p>
+              <TrendChart weeks={s.trend.weeks} label={`${m.name} ${s.season}: weekly score against the league median and average. ${s.trend.summary}`} />
+            </div>
+          )}
+          {s.carry && (
+            <div class="dive-block">
+              <h4>Who's carrying the team</h4>
+              <p class="dive-sum"><strong>{s.carry.topName}: {Math.round(s.carry.top1 * 100)}% of starting points.</strong> Top 3 combined: {Math.round(s.carry.top3 * 100)}%. {s.carry.actual !== s.carry.without ? `Without ${s.carry.topName} (best eligible bench player instead): ${s.carry.actual} → ~${s.carry.without}.` : `Without ${s.carry.topName}, the record holds at ${s.carry.actual}.`}</p>
+              <CarryBar carry={s.carry} />
+            </div>
+          )}
+        </div>
+      ))}
+    </section>
   )}
 
   {m.lore.length > 0 && (
@@ -105,16 +142,18 @@ const path = `managers/${m.id}`;
 
   <section class="panel" id="seasons">
     <div class="panel-head"><h2>Season by season</h2><ShareButton href={url(`${path}#seasons`)} /></div>
-    <p class="muted">Record, points and seed: regular season. Playoffs: winners'-bracket games. Final finish includes the consolation bracket.</p>
+    <p class="muted">Record, vs median (a bonus game each week against the league's median score), true record (both combined), points and seed: regular season. Playoffs: winners'-bracket games. Final finish includes the consolation bracket.</p>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Season</th><th>Team</th><th>Record</th><th class="num">PF</th><th>Seed</th><th>Playoffs</th><th>Final finish</th></tr></thead>
+        <thead><tr><th>Season</th><th>Team</th><th>Record</th><th>vs median</th><th>True</th><th class="num">PF</th><th>Seed</th><th>Playoffs</th><th>Final finish</th></tr></thead>
         <tbody>
           {[...m.seasons].reverse().map((s: any) => (
             <tr>
               <td><a href={url(`archives/${s.season}`)}>{s.season}</a></td>
               <td>{s.team}</td>
               <td>{s.wins}-{s.losses}{s.ties ? `-${s.ties}` : ''}</td>
+              <td>{s.vsMedian ?? '—'}</td>
+              <td>{s.trueRecord ?? '—'}</td>
               <td class="num">{fmt(s.pointsFor)}</td>
               <td>{s.seed ?? '—'}</td>
               <td>{s.playoffRecord ?? (s.madePlayoffs ? '—' : s.finished ? 'Missed' : '—')}{s.bye ? ' · bye' : ''}</td>
@@ -145,3 +184,25 @@ const path = `managers/${m.id}`;
     </div>
   </section>
 </Base>
+
+<script>
+  const pick = document.querySelector<HTMLSelectElement>('[data-season-select]');
+  const show = (season: string) => {
+    document.querySelectorAll<HTMLElement>('[data-season-panel]').forEach((el) => {
+      el.hidden = el.dataset.seasonPanel !== season;
+    });
+  };
+  if (pick) {
+    const want = new URLSearchParams(location.search).get('season');
+    if (want && [...pick.options].some((o) => o.value === want)) pick.value = want;
+    show(pick.value);
+    pick.closest('section')?.classList.add('ready');
+    pick.addEventListener('change', () => {
+      show(pick.value);
+      const u = new URL(location.href);
+      u.searchParams.set('season', pick.value);
+      u.hash = 'season-lab';
+      history.replaceState(null, '', u);
+    });
+  }
+</script>
