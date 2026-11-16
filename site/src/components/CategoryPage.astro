@@ -41,7 +41,7 @@ const lists = cat.segments
   ? SEGMENTS.map((s) => ({ segment: s, entries: s === 'regular' ? cat.entries : cat.segments[s] }))
   : [{ segment: cat.segment, entries: cat.entries }];
 ---
-<Base title={cat.title} description={top ? top.caption : cat.blurb} wing={section}>
+<Base title={cat.title} description={top ? top.caption : cat.blurb} wing={section} ogImage={`og/${section}/${cat.slug}.png`}>
   <nav class="crumbs"><a href={url(section)}>{sectionTitle}</a> / <span>{cat.title}</span></nav>
   <div data-segment-root data-segment="regular">
     <header class="page-head">

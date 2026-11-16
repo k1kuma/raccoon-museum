@@ -17,7 +17,7 @@ const c = m.career;
 const path = `managers/${m.id}`;
 const deep = [...m.seasons].reverse().filter((s: any) => s.trend || s.carry);
 ---
-<Base title={`${m.name} — Manager Exhibit`} description={m.caption} wing="managers">
+<Base title={`${m.name} — Manager Exhibit`} description={m.caption} wing="managers" ogImage={`og/managers/${m.id}.png`}>
   <nav class="crumbs"><a href={url('managers')}>Manager Exhibits</a> / <span>{m.name}</span></nav>
   <header class="page-head exhibit-head" data-manager={m.id}>
     <Avatar id={m.id} size="xl" />

@@ -13,7 +13,7 @@ const { pair, r } = Astro.props as { pair: string; r: any };
 const total = r.aWins + r.bWins + r.ties || 1;
 const path = `rivalry/${pair}`;
 ---
-<Base title={`${name(r.a)} vs ${name(r.b)}`} description={r.caption} wing="rivalry">
+<Base title={`${name(r.a)} vs ${name(r.b)}`} description={r.caption} wing="rivalry" ogImage={`og/rivalry/${pair}.png`}>
   <nav class="crumbs"><a href={url('rivalry')}>Rivalry Room</a> / <span>{name(r.a)} vs {name(r.b)}</span></nav>
   <header class="page-head faceoff" data-pair={pair}>
     <div class="side"><Avatar id={r.a} size="xl" /><a class="chip-name" href={url(`managers/${r.a}`)}>{name(r.a)}</a><span class="big">{r.aWins}</span></div>
