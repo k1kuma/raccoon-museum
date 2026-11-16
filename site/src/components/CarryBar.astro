@@ -1,19 +1,31 @@
 ---
-// Stacked bar of a team's starting points by player, with a legend list underneath.
-interface Props { carry: any }
-const { carry } = Astro.props;
-const COLORS = ['#cc0000', '#1d1e1f', '#1d4ed8', '#0f766e', '#a16207', '#7c3aed', '#be185d', '#475569'];
-const parts = [...carry.players.map((p: any, i: number) => ({ ...p, color: COLORS[i % COLORS.length] })),
-  ...(carry.other.share > 0.005 ? [{ name: 'Everyone else', pos: '', pts: carry.other.pts, share: carry.other.share, color: '#c4c6ca', other: true }] : [])];
+// Ranked horizontal bars of a team's starting points by player (visx island, server-rendered for no-JS).
+import HBars from '../viz/HBars';
+interface Props { carry: any; label?: string }
+const { carry, label = 'Share of starting points by player' } = Astro.props;
 const pct = (s: number) => `${Math.round(s * 100)}%`;
+const rows = [
+  ...carry.players.map((p: any, i: number) => ({
+    key: `${i}-${p.name}`, label: p.name, sub: p.pos, value: p.share, display: `${pct(p.share)}`,
+    color: i === 0 ? '#cc0000' : '#3a3d42', tipTitle: `${p.name} · ${p.pos}`,
+    tipLines: [`${p.pts.toFixed(1)} pts in ${p.starts} starts`, `${(p.share * 100).toFixed(1)}% of starting points`],
+  })),
+  ...(carry.other.share > 0.005 ? [{
+    key: 'other', label: 'Everyone else', value: carry.other.share, display: pct(carry.other.share), color: '#b5b8bd',
+    tipTitle: 'Everyone else', tipLines: [`${carry.other.pts.toFixed(1)} pts`, `${(carry.other.share * 100).toFixed(1)}% of starting points`],
+  }] : []),
+];
 ---
 <div class="carry">
-  <div class="carry-bar" role="img" aria-label={`Share of starting points: ${parts.map((p: any) => `${p.name} ${pct(p.share)}`).join(', ')}`}>
-    {parts.map((p: any) => <span style={`width:${(p.share * 100).toFixed(2)}%;background:${p.color}`} title={`${p.name}: ${p.pts.toFixed(1)} pts (${pct(p.share)})`}></span>)}
-  </div>
-  <ol class="carry-list">
-    {parts.map((p: any) => (
-      <li><i style={`background:${p.color}`}></i><span class="cl-name">{p.name}{p.pos && <span class="muted"> {p.pos}</span>}{!p.other && <span class="muted"> · {p.starts} starts</span>}</span><span class="num">{p.pts.toFixed(1)}</span><strong class="num">{pct(p.share)}</strong></li>
-    ))}
-  </ol>
+  <HBars client:visible rows={rows} label={label} />
+  <details class="trend-data">
+    <summary>Player table</summary>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Player</th><th>Pos</th><th class="num">Starts</th><th class="num">Pts</th><th class="num">Share</th></tr></thead>
+      <tbody>
+        {carry.players.map((p: any) => <tr><td>{p.name}</td><td>{p.pos}</td><td class="num">{p.starts}</td><td class="num">{p.pts.toFixed(1)}</td><td class="num">{pct(p.share)}</td></tr>)}
+        {carry.other.share > 0.005 && <tr><td>Everyone else</td><td></td><td></td><td class="num">{carry.other.pts.toFixed(1)}</td><td class="num">{pct(carry.other.share)}</td></tr>}
+      </tbody>
+    </table></div>
+  </details>
 </div>

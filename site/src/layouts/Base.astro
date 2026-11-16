@@ -179,6 +179,53 @@ const sortedManagers = [...meta.managers].sort((a, b) => a.name.localeCompare(b.
           window.prompt('Copy this link:', link);
         }
       });
+
+      // "?" info tooltips: hover/focus on desktop, tap to toggle on touch, tap elsewhere / Escape / scroll to close.
+      let openTip: HTMLButtonElement | null = null;
+      const bubbleOf = (b: HTMLElement) => document.getElementById(b.getAttribute('aria-describedby') || '');
+      const closeTip = () => {
+        if (!openTip) return;
+        bubbleOf(openTip)?.classList.remove('open');
+        openTip.setAttribute('aria-expanded', 'false');
+        openTip = null;
+      };
+      const openTipFor = (b: HTMLButtonElement) => {
+        if (openTip === b) return;
+        closeTip();
+        const bub = bubbleOf(b);
+        if (!bub) return;
+        bub.classList.add('open');
+        const r = b.getBoundingClientRect(), m = 8;
+        const w = bub.offsetWidth, h = bub.offsetHeight;
+        const left = Math.min(Math.max(m, r.left + r.width / 2 - w / 2), window.innerWidth - w - m);
+        const top = r.bottom + 8 + h > window.innerHeight - m && r.top - 8 - h > m ? r.top - 8 - h : r.bottom + 8;
+        bub.style.left = `${left}px`;
+        bub.style.top = `${top}px`;
+        b.setAttribute('aria-expanded', 'true');
+        openTip = b;
+      };
+      document.querySelectorAll<HTMLButtonElement>('.infotip-btn').forEach((b) => {
+        b.setAttribute('aria-expanded', 'false');
+        let wasOpen: boolean | null = null;
+        b.addEventListener('pointerdown', (e) => { wasOpen = e.pointerType !== 'mouse' && openTip === b; });
+        b.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const was = wasOpen ?? false;
+          wasOpen = null;
+          was ? closeTip() : openTipFor(b);
+        });
+        b.addEventListener('pointerenter', (e) => e.pointerType === 'mouse' && openTipFor(b));
+        b.addEventListener('pointerleave', (e) => e.pointerType === 'mouse' && closeTip());
+        b.addEventListener('focus', () => openTipFor(b));
+        b.addEventListener('blur', closeTip);
+      });
+      document.addEventListener('pointerdown', (e) => {
+        if (openTip && !(e.target as Element).closest?.('.infotip')) closeTip();
+      });
+      document.addEventListener('keydown', (e) => e.key === 'Escape' && closeTip());
+      window.addEventListener('scroll', closeTip, { passive: true });
+      window.addEventListener('resize', closeTip);
     </script>
   </body>
 </html>

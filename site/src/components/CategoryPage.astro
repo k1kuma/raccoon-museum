@@ -4,11 +4,39 @@ import StatEntry from './StatEntry.astro';
 import ShareButton from './ShareButton.astro';
 import SegmentLabel from './SegmentLabel.astro';
 import SegmentToggle from './SegmentToggle.astro';
-import { url, SEGMENTS } from '../lib/data';
+import InfoTip from './InfoTip.astro';
+import HBars from '../viz/HBars';
+import { url, SEGMENTS, name } from '../lib/data';
 interface Props { cat: any; section: string; sectionTitle: string; siblings: any[] }
 const { cat, section, sectionTitle, siblings } = Astro.props;
 const pagePath = `${section}/${cat.slug}`;
 const top = cat.entries[0];
+// Leaderboards where a ranked bar chart helps compare (single-segment categories only).
+const TERMS: Record<string, string> = {
+  'median-records': 'median', 'average-records': 'average', 'true-records': 'true', 'all-play': 'allplay',
+  'luckiest-seasons': 'luck', 'unluckiest-seasons': 'luck', 'clutch-score': 'clutch', 'most-carried': 'carry', 'most-balanced': 'carry',
+};
+const CHART: Record<string, { what: string; max?: number; pct?: boolean }> = {
+  'most-carried': { what: 'Top player share of starting points', pct: true },
+  'most-balanced': { what: 'Top 3 players share of starting points (lower = more balanced)', pct: true },
+  'median-records': { what: 'Win % vs the weekly median', max: 1, pct: true },
+  'average-records': { what: 'Win % vs the weekly average', max: 1, pct: true },
+  'true-records': { what: 'True record win %', max: 1, pct: true },
+  'all-play': { what: 'All-play win %', max: 1, pct: true },
+  'luckiest-seasons': { what: 'Wins above all-play expectation' },
+  'playoff-rate': { what: 'Playoff appearance rate', max: 1, pct: true },
+  'points-crowns': { what: 'Regular-season scoring titles' },
+  'most-points-season': { what: 'Regular-season points' },
+  'bench-season': { what: 'Points left on the bench in a season' },
+};
+const chart = !cat.segments && CHART[cat.slug];
+const yy = (s: any) => (s ? ` '${String(s).slice(2)}` : '');
+const chartRows = chart ? cat.entries.filter((e: any) => e.value > 0).slice(0, 10).map((e: any, i: number) => ({
+  key: `${i}`, label: `${name(e.manager)}${yy(e.season)}`, value: e.value, display: e.display,
+  color: i === 0 ? '#cc0000' : '#3a3d42',
+  tipTitle: `#${e.rank} ${name(e.manager)}${e.season ? ` · ${e.season}` : ''}`,
+  tipLines: [`${e.display}${chart.pct && !String(e.display).includes('%') ? ` (${(e.value * 100).toFixed(1)}%)` : ''}`, ...(e.player ? [e.player] : [])],
+})) : [];
 const lists = cat.segments
   ? SEGMENTS.map((s) => ({ segment: s, entries: s === 'regular' ? cat.entries : cat.segments[s] }))
   : [{ segment: cat.segment, entries: cat.entries }];
@@ -17,11 +45,17 @@ const lists = cat.segments
   <nav class="crumbs"><a href={url(section)}>{sectionTitle}</a> / <span>{cat.title}</span></nav>
   <div data-segment-root data-segment="regular">
     <header class="page-head">
-      <h1>{cat.title}</h1>
+      <h1>{cat.title}{TERMS[cat.slug] && <InfoTip term={TERMS[cat.slug]} />}</h1>
       <p class="lede">{cat.blurb}</p>
       {cat.segments ? <SegmentToggle /> : <div class="seg-row"><SegmentLabel segment={cat.segment} /></div>}
       <ShareButton href={url(pagePath)} text={`${cat.title} — ${top?.caption ?? ''}`} label="Share this exhibit" />
     </header>
+    {chartRows.length > 1 && (
+      <figure class="chart-wrap">
+        <HBars client:visible rows={chartRows} label={`${cat.title}: ${chart.what}, top ${chartRows.length}`} max={chart.max} />
+        <figcaption class="legend">{chart.what} · top {chartRows.length}</figcaption>
+      </figure>
+    )}
     {lists.map(({ segment, entries }) => (
       <section data-seg={cat.segments ? segment : undefined}>
         {cat.segments && <div class="seg-row"><SegmentLabel segment={segment} /></div>}

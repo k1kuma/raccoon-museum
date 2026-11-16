@@ -1,48 +1,14 @@
 ---
-// Weekly score line vs the league median (solid gray) and average (dashed). Dots: green above median, red below.
-interface Week { week: number; pts: number; med: number; avg: number; res: string }
+// Weekly score vs the league median (solid gray) and average (dashed), rendered by a visx island.
+// The island is server-rendered too, so the chart (and the table below) work without JavaScript.
+import TrendViz from '../viz/TrendViz';
+interface Week { week: number; pts: number; med: number; avg: number; res: string; opp?: string | null }
 interface Props { weeks: Week[]; label: string }
 const { weeks, label } = Astro.props;
-const W = 480, H = 260, L = 34, R = 10, T = 12, B = 28;
-const vals = weeks.flatMap((w) => [w.pts, w.med, w.avg]);
-const lo = Math.floor((Math.min(...vals) - 5) / 20) * 20;
-const hi = Math.ceil((Math.max(...vals) + 5) / 20) * 20;
-const x = (i: number) => L + (weeks.length > 1 ? (i * (W - L - R)) / (weeks.length - 1) : (W - L - R) / 2);
-const y = (v: number) => T + ((hi - v) * (H - T - B)) / (hi - lo || 1);
-const line = (k: 'pts' | 'med' | 'avg') => weeks.map((w, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(w[k]).toFixed(1)}`).join('');
-const step = (hi - lo) / 20 > 6 ? 40 : 20;
-const ticks: number[] = [];
-for (let v = lo; v <= hi; v += step) ticks.push(v);
-// Shade the gap between the score and the median for each segment.
-const bands = weeks.slice(1).flatMap((w, j) => {
-  const a = weeks[j];
-  const da = a.pts - a.med, db = w.pts - w.med;
-  if (da * db >= 0) {
-    return [{ d: `M${x(j)},${y(a.pts)}L${x(j + 1)},${y(w.pts)}L${x(j + 1)},${y(w.med)}L${x(j)},${y(a.med)}Z`, up: da + db >= 0 }];
-  }
-  const t = da / (da - db), cx = x(j) + t * (x(j + 1) - x(j)), cy = y(a.med + t * (w.med - a.med));
-  return [{ d: `M${x(j)},${y(a.pts)}L${cx},${cy}L${x(j)},${y(a.med)}Z`, up: da > 0 },
-          { d: `M${cx},${cy}L${x(j + 1)},${y(w.pts)}L${x(j + 1)},${y(w.med)}Z`, up: db > 0 }];
-});
+const clean = weeks.map((w) => ({ ...w, opp: w.opp ?? undefined }));
 ---
 <figure class="trend">
-  <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label} preserveAspectRatio="xMidYMid meet">
-    {ticks.map((v) => (
-      <g class="tick"><line x1={L} x2={W - R} y1={y(v)} y2={y(v)} /><text x={L - 6} y={y(v) + 4}>{v}</text></g>
-    ))}
-    {bands.map((b) => <path class={`band ${b.up ? 'up' : 'down'}`} d={b.d} />)}
-    <path class="l-avg" d={line('avg')} />
-    <path class="l-med" d={line('med')} />
-    <path class="l-pts" d={line('pts')} />
-    {weeks.map((w, i) => (
-      <g>
-        <circle class={w.pts > w.med ? 'above' : w.pts < w.med ? 'below' : 'even'} cx={x(i)} cy={y(w.pts)} r="5.5">
-          <title>{`Week ${w.week}: ${w.pts.toFixed(2)} (${w.res}) · median ${w.med.toFixed(2)} · average ${w.avg.toFixed(2)}`}</title>
-        </circle>
-        <text class="wk" x={x(i)} y={H - 10}>{w.week}</text>
-      </g>
-    ))}
-  </svg>
+  <TrendViz client:visible weeks={clean} label={label} />
   <figcaption class="legend">
     <span><i class="k-pts"></i>Score</span><span><i class="k-med"></i>League median</span><span><i class="k-avg"></i>League average</span>
     <span><i class="k-up"></i>Above median</span><span><i class="k-down"></i>Below</span>
@@ -50,9 +16,9 @@ const bands = weeks.slice(1).flatMap((w, j) => {
   <details class="trend-data">
     <summary>Week-by-week numbers</summary>
     <div class="table-wrap"><table>
-      <thead><tr><th>Wk</th><th class="num">Score</th><th class="num">Median</th><th class="num">Avg</th><th>H2H</th></tr></thead>
+      <thead><tr><th>Wk</th><th>Opp</th><th class="num">Score</th><th class="num">Median</th><th class="num">Avg</th><th>H2H</th></tr></thead>
       <tbody>{weeks.map((w) => (
-        <tr><td>{w.week}</td><td class={`num ${w.pts > w.med ? 'pos' : w.pts < w.med ? 'neg' : ''}`}>{w.pts.toFixed(2)}</td><td class="num">{w.med.toFixed(2)}</td><td class="num">{w.avg.toFixed(2)}</td><td>{w.res}</td></tr>
+        <tr><td>{w.week}</td><td>{w.opp ?? '—'}</td><td class={`num ${w.pts > w.med ? 'pos' : w.pts < w.med ? 'neg' : ''}`}>{w.pts.toFixed(2)}</td><td class="num">{w.med.toFixed(2)}</td><td class="num">{w.avg.toFixed(2)}</td><td>{w.res}</td></tr>
       ))}</tbody>
     </table></div>
   </details>

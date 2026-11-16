@@ -83,3 +83,13 @@ export function ordinal(n: number) {
 }
 
 export const recordStr = (w: number, l: number, t = 0) => `${w}-${l}${t ? `-${t}` : ''}`;
+
+export const GLOSSARY = {
+  true: { title: 'True record', text: 'Two games a week: your real head-to-head game, plus a game against the league median score that week. Beat the median and you get a second win; fall short and it\'s a second loss. That\'s why the W-L adds up to twice as many games.' },
+  median: { title: 'Record vs median', text: 'Your record if every week you played the league\'s median score (the middle of all teams\' scores). It shows how often you were a top-half team, regardless of your opponent.' },
+  average: { title: 'Record vs average', text: 'Your record if every week you played the league\'s average (mean) score. One huge or tiny score can drag the average, so this can differ from the median record.' },
+  allplay: { title: 'All-play record', text: 'Your record if you played every other team every week. With 12 teams, that\'s 11 games a week. It measures how good your scores were, with schedule luck removed.' },
+  luck: { title: 'Luck', text: 'Actual wins minus all-play expected wins (all-play win % × games played). Positive means the schedule helped you; negative means you lost games you usually win.' },
+  clutch: { title: 'Clutch score', text: 'Points per playoff game minus points per regular-season game (winners\' bracket only). Positive means you score more when it matters.' },
+  carry: { title: 'Carry share', text: 'A player\'s share of the team\'s regular-season starting points. "Without" swaps that player for the best eligible bench player each week to estimate the record without them.' },
+} as const;

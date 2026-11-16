@@ -1,0 +1,9 @@
+---
+// "?" button with an explanatory bubble. Behaviour (tap/hover/focus, viewport clamping) lives in Base.astro.
+import { GLOSSARY } from '../lib/data';
+interface Props { term: keyof typeof GLOSSARY | string; text?: string }
+const { term, text } = Astro.props;
+const g = (GLOSSARY as Record<string, { title: string; text: string }>)[term];
+const id = `tip-${term}-${Math.random().toString(36).slice(2, 8)}`;
+---
+<span class="infotip"><button type="button" class="infotip-btn" aria-describedby={id} aria-label={`What is ${g?.title ?? term}?`}>?</button><span role="tooltip" id={id} class="infotip-bubble"><strong>{g?.title ?? term}</strong> {text ?? g?.text}</span></span>

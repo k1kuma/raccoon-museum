@@ -530,7 +530,8 @@ class Museum:
             above = sum(1 for w in o["trend"] if w["pts"] > w["med"])
             out.update({"vsMedian": record_str(*o["med"]), "vsAverage": record_str(*o["avg"]),
                         "trueRecord": record_str(*o["true"]),
-                        "trend": {"weeks": [{k: w[k] for k in ("week", "pts", "med", "avg", "res")} for w in o["trend"]],
+                        "trend": {"weeks": [{k: w[k] for k in ("week", "pts", "med", "avg", "res")}
+                                            | {"opp": self.name(w["opp"]) if w["opp"] else None} for w in o["trend"]],
                                   "aboveMedian": above, "aboveAverage": o["avg"][0],
                                   "summary": f"Above the median in {above} of {o['weeks']} regular-season weeks"
                                              + ("" if self.finished(o["season"]) else " so far") + "."}})

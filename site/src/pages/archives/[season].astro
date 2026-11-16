@@ -4,6 +4,7 @@ import Chip from '../../components/Chip.astro';
 import Avatar from '../../components/Avatar.astro';
 import ShareButton from '../../components/ShareButton.astro';
 import SegmentLabel from '../../components/SegmentLabel.astro';
+import InfoTip from '../../components/InfoTip.astro';
 import { archives, url, fmt, name, recordStr, ordinal } from '../../lib/data';
 
 export function getStaticPaths() {
@@ -34,7 +35,7 @@ const older = archives[idx + 1];
     <button type="button" class="pill opt-toggle" data-opt-toggle aria-pressed="false" aria-controls="standings-table">Show vs median, vs average &amp; true record</button>
     <div class="table-wrap">
       <table id="standings-table" class="has-opt">
-        <thead><tr><th>Seed</th><th>Manager</th><th>Team</th><th>Record</th><th class="opt-col" title="Record in a bonus game each week against the league's median score">vs median</th><th class="opt-col" title="Record against the league's average score each week">vs avg</th><th class="opt-col" title="Head-to-head plus median record">True</th><th class="num">PF</th><th class="num">PA</th><th>Final finish</th><th>Moves</th><th>Draft</th></tr></thead>
+        <thead><tr><th>Seed</th><th>Manager</th><th>Team</th><th>Record</th><th class="opt-col">vs median<InfoTip term="median" /></th><th class="opt-col">vs avg<InfoTip term="average" /></th><th class="opt-col">True<InfoTip term="true" /></th><th class="num">PF</th><th class="num">PA</th><th>Final finish</th><th>Moves</th><th>Draft</th></tr></thead>
         <tbody>
           {s.standings.map((t: any, i: number) => (
             <tr data-manager={t.manager}>

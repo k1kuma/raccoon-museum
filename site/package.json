@@ -8,8 +8,23 @@
     "preview": "astro preview"
   },
   "dependencies": {
+    "@astrojs/preact": "^6.1.6",
     "@fontsource/roboto": "^5.3.0",
     "@fontsource/roboto-condensed": "^5.3.0",
-    "astro": "^5.0.0"
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@visx/axis": "^4.0.0",
+    "@visx/curve": "^4.0.0",
+    "@visx/event": "^4.0.0",
+    "@visx/grid": "^4.0.0",
+    "@visx/group": "^4.0.0",
+    "@visx/responsive": "^4.0.0",
+    "@visx/scale": "^4.0.0",
+    "@visx/shape": "^4.0.0",
+    "@visx/threshold": "^4.0.0",
+    "@visx/tooltip": "^4.0.0",
+    "astro": "^5.0.0",
+    "preact": "^11.2.0",
+    "react": "^19.3.1"
   }
 }

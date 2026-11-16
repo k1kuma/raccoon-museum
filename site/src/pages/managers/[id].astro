@@ -6,6 +6,7 @@ import ShareButton from '../../components/ShareButton.astro';
 import SegmentLabel from '../../components/SegmentLabel.astro';
 import TrendChart from '../../components/TrendChart.astro';
 import CarryBar from '../../components/CarryBar.astro';
+import InfoTip from '../../components/InfoTip.astro';
 import { managers, url, fmt, ordinal } from '../../lib/data';
 
 export function getStaticPaths() {
@@ -32,10 +33,10 @@ const deep = [...m.seasons].reverse().filter((s: any) => s.trend || s.carry);
   <div class="kpi-group-head" id="career"><h2>Regular season</h2><SegmentLabel segment="regular" /></div>
   <section class="kpis">
     <div class="kpi"><span class="kpi-v">{c.wins}-{c.losses}{c.ties ? `-${c.ties}` : ''}</span><span class="kpi-l">Career record ({(c.pct * 100).toFixed(1)}%)</span></div>
-    <div class="kpi"><span class="kpi-v">{c.allPlay.pct !== null ? `${c.allPlay.wins}-${c.allPlay.losses}${c.allPlay.ties ? `-${c.allPlay.ties}` : ''}` : '—'}</span><span class="kpi-l">All-play record{c.allPlay.pct !== null ? ` (${(c.allPlay.pct * 100).toFixed(1)}%)` : ''}</span></div>
-    <div class="kpi"><span class="kpi-v">{c.luck > 0 ? '+' : ''}{c.luck.toFixed(1)}</span><span class="kpi-l">Luck (wins vs all-play expected)</span></div>
-    {c.vsMedian && <div class="kpi"><span class="kpi-v">{c.vsMedian}</span><span class="kpi-l">Record vs weekly median (vs average {c.vsAverage})</span></div>}
-    {c.trueRecord && <div class="kpi"><span class="kpi-v">{c.trueRecord}</span><span class="kpi-l">True record (H2H + median)</span></div>}
+    <div class="kpi"><span class="kpi-v">{c.allPlay.pct !== null ? `${c.allPlay.wins}-${c.allPlay.losses}${c.allPlay.ties ? `-${c.allPlay.ties}` : ''}` : '—'}</span><span class="kpi-l">All-play record<InfoTip term="allplay" />{c.allPlay.pct !== null ? ` (${(c.allPlay.pct * 100).toFixed(1)}%)` : ''}</span></div>
+    <div class="kpi"><span class="kpi-v">{c.luck > 0 ? '+' : ''}{c.luck.toFixed(1)}</span><span class="kpi-l">Luck (wins vs all-play expected)<InfoTip term="luck" /></span></div>
+    {c.vsMedian && <div class="kpi"><span class="kpi-v">{c.vsMedian}</span><span class="kpi-l">Record vs weekly median<InfoTip term="median" /> (vs average {c.vsAverage}<InfoTip term="average" />)</span></div>}
+    {c.trueRecord && <div class="kpi"><span class="kpi-v">{c.trueRecord}</span><span class="kpi-l">True record (H2H + median, 2 games a week)<InfoTip term="true" /></span></div>}
     <div class="kpi"><span class="kpi-v">{fmt(c.pointsFor, 0)}</span><span class="kpi-l">Points for ({c.regularPpg ? fmt(c.regularPpg, 1) : '—'} per game)</span></div>
     <div class="kpi"><span class="kpi-v">{fmt(c.benchPoints, 0)}</span><span class="kpi-l">Points left on bench ({c.benchCostWins} lost wins)</span></div>
     <div class="kpi"><span class="kpi-v">{c.unluckyLosses}</span><span class="kpi-l">Losses with 2nd-best score</span></div>
@@ -47,7 +48,7 @@ const deep = [...m.seasons].reverse().filter((s: any) => s.trend || s.carry);
     <div class="kpi"><span class="kpi-v">{c.playoffWins}-{c.playoffLosses}</span><span class="kpi-l">Playoff record</span></div>
     <div class="kpi"><span class="kpi-v">{c.playoffApps}</span><span class="kpi-l">Appearances{c.completedSeasons ? ` in ${c.completedSeasons} seasons (${Math.round((c.playoffRate ?? 0) * 100)}%)` : ''}</span></div>
     <div class="kpi"><span class="kpi-v">{c.playoffByes}</span><span class="kpi-l">First-round byes</span></div>
-    <div class="kpi"><span class="kpi-v">{c.clutch !== null ? `${c.clutch > 0 ? '+' : ''}${fmt(c.clutch, 1)}` : '—'}</span><span class="kpi-l">Clutch score{c.playoffPpg ? ` (${fmt(c.playoffPpg, 1)} per playoff game)` : ''}</span></div>
+    <div class="kpi"><span class="kpi-v">{c.clutch !== null ? `${c.clutch > 0 ? '+' : ''}${fmt(c.clutch, 1)}` : '—'}</span><span class="kpi-l">Clutch score<InfoTip term="clutch" />{c.playoffPpg ? ` (${fmt(c.playoffPpg, 1)} per playoff game)` : ''}</span></div>
     <div class="kpi"><span class="kpi-v">{c.bestFinish ? ordinal(c.bestFinish) : '—'}</span><span class="kpi-l">Best final finish (avg {c.avgFinish ?? '—'})</span></div>
   </section>
 
@@ -70,14 +71,14 @@ const deep = [...m.seasons].reverse().filter((s: any) => s.trend || s.carry);
           <h3 class="dive-title">{s.season} · {s.team}</h3>
           {s.trend && (
             <div class="dive-block">
-              <h4>Weekly scores vs the league</h4>
+              <h4>Weekly scores vs the league <InfoTip term="median" /></h4>
               <p class="dive-sum"><strong>{s.trend.summary}</strong> vs median {s.vsMedian} · vs average {s.vsAverage} · head-to-head {s.wins}-{s.losses}{s.ties ? `-${s.ties}` : ''} · true record {s.trueRecord}{s.allPlay ? ` · all-play ${s.allPlay.record} (luck ${s.allPlay.luck > 0 ? '+' : ''}${s.allPlay.luck.toFixed(1)})` : ''}</p>
               <TrendChart weeks={s.trend.weeks} label={`${m.name} ${s.season}: weekly score against the league median and average. ${s.trend.summary}`} />
             </div>
           )}
           {s.carry && (
             <div class="dive-block">
-              <h4>Who's carrying the team</h4>
+              <h4>Who's carrying the team <InfoTip term="carry" /></h4>
               <p class="dive-sum"><strong>{s.carry.topName}: {Math.round(s.carry.top1 * 100)}% of starting points.</strong> Top 3 combined: {Math.round(s.carry.top3 * 100)}%. {s.carry.actual !== s.carry.without ? `Without ${s.carry.topName} (best eligible bench player instead): ${s.carry.actual} → ~${s.carry.without}.` : `Without ${s.carry.topName}, the record holds at ${s.carry.actual}.`}</p>
               <CarryBar carry={s.carry} />
             </div>
@@ -145,7 +146,7 @@ const deep = [...m.seasons].reverse().filter((s: any) => s.trend || s.carry);
     <p class="muted">Record, vs median (a bonus game each week against the league's median score), true record (both combined), points and seed: regular season. Playoffs: winners'-bracket games. Final finish includes the consolation bracket.</p>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Season</th><th>Team</th><th>Record</th><th>vs median</th><th>True</th><th class="num">PF</th><th>Seed</th><th>Playoffs</th><th>Final finish</th></tr></thead>
+        <thead><tr><th>Season</th><th>Team</th><th>Record</th><th>vs median<InfoTip term="median" /></th><th>True<InfoTip term="true" /></th><th class="num">PF</th><th>Seed</th><th>Playoffs</th><th>Final finish</th></tr></thead>
         <tbody>
           {[...m.seasons].reverse().map((s: any) => (
             <tr>
