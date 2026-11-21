@@ -1,12 +1,8 @@
 {
- "fetched_at": "2026-11-19T10:01:43Z",
- "from": "2026-11-18",
- "to": "2026-11-27",
+ "fetched_at": "2026-11-21T10:01:20Z",
+ "from": "2026-11-20",
+ "to": "2026-11-29",
  "games": [
-  {
-   "kickoff": "2026-11-20T01:15Z",
-   "name": "IND @ HOU"
-  },
   {
    "kickoff": "2026-11-22T18:00Z",
    "name": "ARI @ KC"
@@ -74,6 +70,46 @@
   {
    "kickoff": "2026-11-27T20:00Z",
    "name": "DEN @ PIT"
+  },
+  {
+   "kickoff": "2026-11-29T18:00Z",
+   "name": "ATL @ MIN"
+  },
+  {
+   "kickoff": "2026-11-29T18:00Z",
+   "name": "BAL @ HOU"
+  },
+  {
+   "kickoff": "2026-11-29T18:00Z",
+   "name": "NO @ CIN"
+  },
+  {
+   "kickoff": "2026-11-29T18:00Z",
+   "name": "NYG @ IND"
+  },
+  {
+   "kickoff": "2026-11-29T18:00Z",
+   "name": "NYJ @ MIA"
+  },
+  {
+   "kickoff": "2026-11-29T18:00Z",
+   "name": "TEN @ JAX"
+  },
+  {
+   "kickoff": "2026-11-29T21:05Z",
+   "name": "NE @ LAC"
+  },
+  {
+   "kickoff": "2026-11-29T21:25Z",
+   "name": "SEA @ SF"
+  },
+  {
+   "kickoff": "2026-11-29T21:25Z",
+   "name": "WSH @ ARI"
+  },
+  {
+   "kickoff": "2026-11-30T01:20Z",
+   "name": "LV @ CLE"
   }
  ]
 }
