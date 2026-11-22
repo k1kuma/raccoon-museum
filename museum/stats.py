@@ -1401,6 +1401,8 @@ class Museum:
         managers = self.manager_pages(bench, drafts, trades, h2h, unlucky, active, allplay, profile)
         lobby = self.lobby({"records": records, "shame": shame}, bench, active, h2h)
         lobby["live"] = self.live_board(live)
+        from .preview import matchup_previews
+        lobby["previews"] = matchup_previews(self, live if lobby["live"] else None)
         latest_season = self.seasons.get(self.latest["season"], {})
         meta = {
             "leagueName": config.LEAGUE_NAME, "leagueUrl": config.LEAGUE_URL, "isSample": self.is_sample,

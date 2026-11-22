@@ -1,0 +1,40 @@
+---
+import Base from '../../layouts/Base.astro';
+import Chip from '../../components/Chip.astro';
+import ShareButton from '../../components/ShareButton.astro';
+import { fmt, lobby, rivalries, url } from '../../lib/data';
+
+export function getStaticPaths() {
+  return lobby.previews.map((preview: any) => ({ params: { id: preview.id }, props: { preview } }));
+}
+
+const { preview } = Astro.props;
+const [a, b] = preview.teams;
+const rivalry = [a.manager, b.manager].sort().join('--');
+const title = `${a.name} vs. ${b.name}`;
+const favorite = preview.spread > 0 ? a : b;
+const line = preview.spread === 0 ? 'Pick’em' : `${favorite.name} −${Math.abs(preview.spread)}`;
+const result = preview.cover === 'push' ? 'Push' : `${preview.cover === 'a' ? a.name : b.name} covered`;
+---
+<Base title={title} description={`Week ${preview.week} · Museum line: ${line}`} wing="lobby">
+  <nav class="crumbs"><a href={url('#matchup-preview')}>Lobby</a> / Featured matchup</nav>
+  <header class="page-head">
+    <p class="eyebrow">{preview.season} · Week {preview.week}</p>
+    <h1>{title}</h1>
+    <ShareButton href={url(`matchup/${preview.id}`)} text={`${title} · Museum line: ${line}`} label="Share matchup" />
+  </header>
+  <section class="panel">
+    <h2>Museum line</h2>
+    <p><strong>{line}</strong></p>
+    <p class="muted">For fun. Based on each team’s five completed games before this matchup.</p>
+    <p>{preview.meetings ? `${preview.meetings} prior meetings between these managers.` : 'First meeting between these managers.'}</p>
+    {rivalries[rivalry] && <a href={url(`rivalry/${rivalry}`)}>See rivalry history →</a>}
+  </section>
+  {preview.scores && (
+    <section class="panel">
+      <h2>Final score</h2>
+      <p><Chip id={a.manager} small /> {fmt(preview.scores[0])} · <Chip id={b.manager} small /> {fmt(preview.scores[1])}</p>
+      <p><strong>{result}</strong></p>
+    </section>
+  )}
+</Base>

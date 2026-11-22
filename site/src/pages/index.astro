@@ -5,6 +5,7 @@ import Chip from '../components/Chip.astro';
 import ShareButton from '../components/ShareButton.astro';
 import { meta, lobby, url, fmt, name, latestLabel, champions, etTime } from '../lib/data';
 const live = lobby.live;
+const preview = lobby.previews?.at(-1);
 const t = lobby.totals;
 const reigning = champions.banners[0];
 import SegmentLabel from '../components/SegmentLabel.astro';
@@ -55,6 +56,16 @@ import SegmentLabel from '../components/SegmentLabel.astro';
           </li>
         ))}
       </ul>
+    </section>
+  )}
+
+  {preview && (
+    <section class="panel" id="matchup-preview">
+      <div class="panel-head">
+        <h2>Featured matchup <span class="muted">· Week {preview.week}</span></h2>
+        <ShareButton href={url(`matchup/${preview.id}`)} />
+      </div>
+      <p><a href={url(`matchup/${preview.id}`)}>{preview.teams[0].name} vs. {preview.teams[1].name}</a></p>
     </section>
   )}
 
