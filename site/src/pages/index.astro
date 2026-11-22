@@ -37,7 +37,7 @@ import SegmentLabel from '../components/SegmentLabel.astro';
         <ShareButton href={url('#live')} />
       </div>
       <p class="muted live-note">
-        Last updated {etTime(live.updatedAt)}. {live.final ? 'Scores are final but not yet in the record books.' : live.started ? 'Scores in progress — not final, and they don’t count toward records until the week is over.' : 'Kickoff hasn’t happened yet; Yahoo projections shown.'}
+        Last updated {etTime(live.updatedAt)}. {live.final ? 'Scores are final but not yet in the record books.' : live.started ? 'Scores in progress — not final, and they don’t count toward records until the week is over.' : 'Kickoff hasn’t happened yet.'}
       </p>
       <ul class="live-games">
         {live.games.map((g: any) => (
@@ -49,7 +49,6 @@ import SegmentLabel from '../components/SegmentLabel.astro';
                 <div class:list={['live-side', { leading: g.leader === side }]} data-manager={t.manager}>
                   <span class="live-who"><Chip id={t.manager} small /><span class="team-name">{t.team}</span></span>
                   <span class="live-pts num">{fmt(t.points)}</span>
-                  <span class="live-proj muted num">{t.projected != null ? `proj ${fmt(t.projected)}` : ''}{g.projectedWinner === side ? ' ▲' : ''}</span>
                 </div>
               );
             })}
