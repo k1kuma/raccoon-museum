@@ -216,6 +216,7 @@ summary { cursor: pointer; font-weight: 600; }
 .live-side { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 0 .5rem; padding: .15rem 0; }
 .live-who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .live-pts { font-weight: 700; font-variant-numeric: tabular-nums; }
+.live-line { margin: .35rem 0 0; font-size: .78rem; }
 .live-side.leading .live-pts { color: var(--green); }
 .avatar-img { object-fit: cover; background: #fff; padding: 0; }
 

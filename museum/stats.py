@@ -15,6 +15,7 @@ from . import config, db, lineup
 from . import draft as draft_mod
 from . import season as season_mod
 from .managers import Resolver, load_config
+from .preview import matchup_previews, point_spread
 
 TOP_N = 25
 # Record Book segments, and the game types each one includes. Consolation games only appear in the Toilet Bowl.
@@ -1346,6 +1347,11 @@ class Museum:
             return None
         if (datetime.now(timezone.utc) - fetched).days >= 7:
             return None
+        completed = defaultdict(list)
+        for row in self.rows:
+            if row["season"] == live["season"] and row["week"] < live["week"]:
+                completed[row["team_key"]].append(row["points"])
+
         games = []
         for g in live.get("games", []):
             sides = [{"manager": self.mgr(t["teamKey"]), "team": self.teams.get(t["teamKey"], {}).get("name", ""),
@@ -1357,7 +1363,9 @@ class Museum:
             proj = None
             if a["projected"] is not None and b["projected"] is not None and a["projected"] != b["projected"]:
                 proj = "a" if a["projected"] > b["projected"] else "b"
-            games.append({"label": g.get("label", ""), "a": a, "b": b, "leader": lead, "projectedWinner": proj})
+            spread = point_spread(*(completed[t["teamKey"]] for t in g["teams"]))
+            games.append({"label": g.get("label", ""), "a": a, "b": b, "leader": lead,
+                          "projectedWinner": proj, "spread": spread})
         if not games:
             return None
         started = any(g[s]["points"] for g in games for s in ("a", "b"))
@@ -1401,7 +1409,6 @@ class Museum:
         managers = self.manager_pages(bench, drafts, trades, h2h, unlucky, active, allplay, profile)
         lobby = self.lobby({"records": records, "shame": shame}, bench, active, h2h)
         lobby["live"] = self.live_board(live)
-        from .preview import matchup_previews
         lobby["previews"] = matchup_previews(self, live if lobby["live"] else None)
         latest_season = self.seasons.get(self.latest["season"], {})
         meta = {
