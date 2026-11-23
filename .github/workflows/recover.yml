@@ -1,0 +1,55 @@
+name: Recover failed workflows
+
+on:
+  workflow_run:
+    workflows: ["Live scores", "Update & deploy museum", "NFL schedule"]
+    branches: [main]
+    types: [completed]
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  retry:
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.run_attempt == 1 &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Retry failed infrastructure jobs once
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          main_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
+          if [[ "$RUN_SHA" != "$main_sha" ]]; then
+            echo "Run used an older main revision. Skipping retry." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          failed_steps=$(gh api --paginate             "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/attempts/1/jobs?per_page=100"             --jq '.jobs[] | select(.conclusion == "failure") | .steps[] | select(.conclusion == "failure") | .name')
+          if [[ -z "$failed_steps" ]]; then
+            echo "No failed step identified. See the original run for details." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          while IFS= read -r step; do
+            case "$step" in
+              "Set up job"|"Run actions/checkout@v4"|"Run actions/setup-python@v5"|"Run actions/setup-node@v4"|"Run actions/configure-pages@v5"|"Run actions/upload-pages-artifact@v3"|"Run actions/deploy-pages@v4") ;;
+              *)
+                echo "At least one failed step requires investigation. See the original run." >> "$GITHUB_STEP_SUMMARY"
+                exit 0
+                ;;
+            esac
+          done <<< "$failed_steps"
+
+          attempt=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq .run_attempt)
+          if [[ "$attempt" == 1 ]]; then
+            gh api --method POST "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/rerun-failed-jobs"
+            echo "Requested one retry of the failed jobs in run $RUN_ID." >> "$GITHUB_STEP_SUMMARY"
+          fi
