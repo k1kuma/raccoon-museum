@@ -212,3 +212,19 @@ data/              league.sqlite (committed once ingested), managers.yaml
 site/              Astro site (pages in site/src/pages, team logos in site/public/logos)
 .github/workflows  update.yml (weekly ingest + deploy), live.yml (game-day live scores), nfl-schedule.yml (daily kickoff times), ci.yml (PR checks)
 ```
+
+### Automatic workflow repair
+
+The recovery workflow retries eligible infrastructure failures once on the current
+`main` revision. It opens one issue per workflow and failed-step signature while
+that issue is open, and assigns it to GitHub Copilot to propose a fix PR. Live Yahoo
+scrape failures use the scrape alert and cookie refresher above.
+
+Enable the Copilot cloud agent for this repository and set the Actions secret
+`COPILOT_REPAIR_TOKEN` to a user token from an account with Copilot access. A
+fine-grained PAT scoped to this repository needs Metadata read and Actions,
+Contents, Issues, and Pull requests read/write. Submit it through GitHub's
+Actions secrets settings. With no token, recovery still retries and files issues.
+Copilot repair PRs follow the repository's normal CI and merge requirements.
+
+See [GitHub's Copilot API authentication instructions](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/use-cloud-agent-via-the-api).
