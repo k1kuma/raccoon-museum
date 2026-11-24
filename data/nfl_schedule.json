@@ -1,52 +1,8 @@
 {
- "fetched_at": "2026-11-22T10:01:19Z",
- "from": "2026-11-21",
- "to": "2026-11-30",
+ "fetched_at": "2026-11-24T10:01:40Z",
+ "from": "2026-11-23",
+ "to": "2026-12-02",
  "games": [
-  {
-   "kickoff": "2026-11-22T18:00Z",
-   "name": "ARI @ KC"
-  },
-  {
-   "kickoff": "2026-11-22T18:00Z",
-   "name": "BAL @ CAR"
-  },
-  {
-   "kickoff": "2026-11-22T18:00Z",
-   "name": "MIA @ BUF"
-  },
-  {
-   "kickoff": "2026-11-22T18:00Z",
-   "name": "NO @ CHI"
-  },
-  {
-   "kickoff": "2026-11-22T18:00Z",
-   "name": "PIT @ PHI"
-  },
-  {
-   "kickoff": "2026-11-22T18:00Z",
-   "name": "TB @ DET"
-  },
-  {
-   "kickoff": "2026-11-22T18:00Z",
-   "name": "TEN @ DAL"
-  },
-  {
-   "kickoff": "2026-11-22T21:05Z",
-   "name": "NYJ @ LAC"
-  },
-  {
-   "kickoff": "2026-11-22T21:25Z",
-   "name": "JAX @ NYG"
-  },
-  {
-   "kickoff": "2026-11-22T21:25Z",
-   "name": "LV @ DEN"
-  },
-  {
-   "kickoff": "2026-11-23T01:20Z",
-   "name": "MIN VS SF"
-  },
   {
    "kickoff": "2026-11-24T01:15Z",
    "name": "CIN @ WSH"
