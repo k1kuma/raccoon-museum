@@ -58,21 +58,29 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      # Fails the job (so nothing is deployed and the live site keeps its last good build) when OAuth expires.
-      - name: Fetch live scoreboard from Yahoo API
+      # Prefer the approved API, then use the browser-session scraper until Yahoo enables the app.
+      - name: Fetch live scoreboard
         id: fetch
         env:
           YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
           YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
           YAHOO_REFRESH_TOKEN: ${{ secrets.YAHOO_REFRESH_TOKEN }}
           YAHOO_GAME_ID: ${{ vars.YAHOO_GAME_ID }}
+          YAHOO_COOKIES: ${{ secrets.YAHOO_COOKIES }}
         run: |
           set +e
           python -m museum ingest --live --delay 0
-          code=$?
+          api_code=$?
+          if [ $api_code -ne 0 ]; then
+            echo "::notice::Yahoo API fetch failed; trying the browser-session fallback."
+            python -m museum scrape --live --delay 0
+            code=$?
+          else
+            code=0
+          fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
           if [ $code -ne 0 ]; then
-            echo "::error::Live API fetch failed (exit $code) — refresh YAHOO_REFRESH_TOKEN with scripts/auth.py if the token was revoked. The site was not redeployed."
+            echo "::error::Live score fetch failed (exit $code). The site was not redeployed."
           fi
           exit $code
 

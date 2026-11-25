@@ -40,10 +40,21 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      # Fallback for installations that have not yet received Yahoo Fantasy API approval.
+      - name: Ingest from Yahoo API (incremental)
+        id: ingest
+        if: github.event_name != 'push' && env.HAS_YAHOO_TOKEN == 'true'
+        continue-on-error: true
+        env:
+          YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
+          YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
+          YAHOO_REFRESH_TOKEN: ${{ secrets.YAHOO_REFRESH_TOKEN }}
+          YAHOO_GAME_ID: ${{ vars.YAHOO_GAME_ID }}
+        run: python -m museum ingest --time-budget 300 ${{ inputs.full && '--full' || '' }}
+
+      # Use the browser-session scraper when the API is unavailable or has not received Yahoo approval yet.
       - name: Scrape Yahoo pages (incremental fallback)
         id: scrape
-        if: github.event_name != 'push' && env.HAS_YAHOO_TOKEN != 'true' && env.HAS_YAHOO_COOKIES == 'true'
+        if: github.event_name != 'push' && env.HAS_YAHOO_COOKIES == 'true' && steps.ingest.outcome != 'success'
         continue-on-error: true
         env:
           YAHOO_COOKIES: ${{ secrets.YAHOO_COOKIES }}
@@ -68,18 +79,8 @@ jobs:
           --code "${{ steps.scrape.outputs.code }}" --workflow "${{ github.workflow }}"
           --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-      - name: Ingest from Yahoo API (incremental)
-        id: ingest
-        if: github.event_name != 'push' && env.HAS_YAHOO_TOKEN == 'true'
-        env:
-          YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
-          YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
-          YAHOO_REFRESH_TOKEN: ${{ secrets.YAHOO_REFRESH_TOKEN }}
-          YAHOO_GAME_ID: ${{ vars.YAHOO_GAME_ID }}
-        run: python -m museum ingest --time-budget 300 ${{ inputs.full && '--full' || '' }}
-
       - name: Commit updated database and team logos
-        if: always() && (steps.ingest.conclusion != 'skipped' || steps.scrape.conclusion != 'skipped')
+        if: always() && (steps.ingest.outcome == 'success' || steps.scrape.outcome == 'success')
         run: |
           has_data=$(python -c "from museum.db import has_league_data; print(int(has_league_data('data/league.sqlite')))")
           if [ "$has_data" != "1" ]; then
