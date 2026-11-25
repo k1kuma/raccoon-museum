@@ -1,6 +1,6 @@
 name: Live scores
 
-# Live scores during NFL games: read only the current week's scoreboard (1 Yahoo request), rebuild and redeploy.
+# Live scores during NFL games: read only the current week's scoreboard through Yahoo's approved API, rebuild and deploy.
 # Nothing is committed — live scores live only in the deployed site, and records, streaks and standings keep
 # using final weeks from data/league.sqlite (committed by the Tuesday run).
 #
@@ -58,30 +58,32 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      # Fails the job (so nothing is deployed and the live site keeps its last good build) when cookies expire.
-      - name: Scrape live scoreboard
-        id: scrape
+      # Fails the job (so nothing is deployed and the live site keeps its last good build) when OAuth expires.
+      - name: Fetch live scoreboard from Yahoo API
+        id: fetch
         env:
-          YAHOO_COOKIES: ${{ secrets.YAHOO_COOKIES }}
-          YAHOO_SEASONS: ${{ vars.YAHOO_SEASONS }}
+          YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
+          YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
+          YAHOO_REFRESH_TOKEN: ${{ secrets.YAHOO_REFRESH_TOKEN }}
+          YAHOO_GAME_ID: ${{ vars.YAHOO_GAME_ID }}
         run: |
           set +e
-          python -m museum scrape --live --delay 0
+          python -m museum ingest --live --delay 0
           code=$?
           echo "code=$code" >> "$GITHUB_OUTPUT"
           if [ $code -ne 0 ]; then
-            echo "::error::Live scrape failed (exit $code) — if the log mentions the login page, refresh the YAHOO_COOKIES secret (README → Scraping with browser cookies). The site was not redeployed."
+            echo "::error::Live API fetch failed (exit $code) — refresh YAHOO_REFRESH_TOKEN with scripts/auth.py if the token was revoked. The site was not redeployed."
           fi
           exit $code
 
-      # Opens (or comments on, at most every 6 h) a `scrape-failure` issue; the next good scrape closes it.
-      - name: Report scrape status
-        if: always() && steps.scrape.conclusion != 'skipped'
+      # Opens (or comments on, at most every 6 h) a `scrape-failure` issue; the next good fetch closes it.
+      - name: Report live fetch status
+        if: always() && steps.fetch.conclusion != 'skipped'
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          python scripts/scrape_alert.py ${{ steps.scrape.outcome == 'success' && 'ok' || 'fail' }}
-          --code "${{ steps.scrape.outputs.code }}" --workflow "${{ github.workflow }}"
+          python scripts/scrape_alert.py ${{ steps.fetch.outcome == 'success' && 'ok' || 'fail' }}
+          --code "${{ steps.fetch.outputs.code }}" --workflow "${{ github.workflow }}"
           --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: Generate museum data

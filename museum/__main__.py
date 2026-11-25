@@ -21,6 +21,8 @@ def main(argv: list[str] | None = None) -> int:
     p_ingest.add_argument("--league-id", default=config.LEAGUE_ID)
     p_ingest.add_argument("--full", action="store_true", help="re-fetch everything, ignoring the cache")
     p_ingest.add_argument("--season", type=int, action="append", help="only ingest these season(s)")
+    p_ingest.add_argument("--live", action="store_true",
+                          help="only read the current week's scoreboard into data/live.json; the database is not touched")
     p_ingest.add_argument("--time-budget", type=float, default=330, help="minutes before stopping gracefully")
     p_ingest.add_argument("--delay", type=float, default=0.35, help="seconds between API calls")
 

@@ -361,7 +361,55 @@ def ingest_transactions(y: Yahoo, conn, league_id, game_id, season) -> None:
     conn.commit()
 
 
+def live_snapshot_from_matchups(matchups: list[dict], season: int, week: int) -> dict:
+    """Convert the API's current-week scoreboard into the site's small live payload."""
+    games = []
+    statuses = []
+    for matchup in as_list(matchups, "matchup"):
+        teams = as_list(matchup.get("teams"), "team")
+        if len(teams) != 2:
+            continue
+        statuses.append(str(matchup.get("status") or "").lower())
+        games.append({"label": matchup.get("matchup_recap_title") or "", "teams": [
+            {"teamKey": team.get("team_key"),
+             "points": num(dig(team, "team_points", "total"), 0.0),
+             "projected": num(dig(team, "team_projected_points", "total"))}
+            for team in teams
+        ]})
+    if not games:
+        raise SystemExit("Yahoo returned no matchups for the current week.")
+    return {
+        "season": season,
+        "week": week,
+        # Yahoo reports a matchup as postevent once its scoring is final.
+        "final": bool(statuses) and all(status == "postevent" for status in statuses),
+        "fetchedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "games": games,
+    }
+
+
+def run_live(args) -> int:
+    """Fetch the current scoreboard via the approved Yahoo Fantasy API."""
+    y = Yahoo(delay=args.delay, deadline=time.time() + args.time_budget * 60)
+    game_id = os.environ.get("YAHOO_GAME_ID") or None
+    metadata = y.call(args.league_id, game_id, "get_league_metadata")
+    season = intval(metadata.get("season"))
+    week = intval(metadata.get("current_week"))
+    resolved_game_id = str(metadata.get("game_id") or game_id or "") or None
+    if not season or not week:
+        raise SystemExit("Yahoo did not return the current season/week for this league.")
+    matchups = y.call(args.league_id, resolved_game_id, "get_league_matchups_by_week", week)
+    out = getattr(args, "live_out", None) or config.LIVE_JSON
+    snapshot = live_snapshot_from_matchups(matchups, season, week)
+    out.write_text(json.dumps(snapshot, ensure_ascii=False))
+    log.info("Live: %s week %s, %s games, final=%s → %s", season, week, len(snapshot["games"]),
+             snapshot["final"], out)
+    return 0
+
+
 def run(args) -> int:
+    if getattr(args, "live", False):
+        return run_live(args)
     deadline = time.time() + args.time_budget * 60
     y = Yahoo(delay=args.delay, deadline=deadline)
     # Discover before touching the DB so a failed login never leaves an empty league.sqlite behind.

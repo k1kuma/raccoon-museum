@@ -74,7 +74,7 @@ Stats default to the regular season. That includes the Basement, standings, stre
 
 ## One-time setup (what you need to do)
 
-`YAHOO_CLIENT_ID` and `YAHOO_CLIENT_SECRET` are already stored as Actions secrets. Only the refresh token is missing.
+The production workflows authenticate with Yahoo OAuth using three Actions secrets: `YAHOO_CLIENT_ID`, `YAHOO_CLIENT_SECRET`, and `YAHOO_REFRESH_TOKEN`.
 
 ### 1. Get a Yahoo refresh token (about 2 minutes, on your computer)
 
@@ -93,7 +93,7 @@ The script:
 2. Opens Yahoo's consent page. Sign in as a league member and click **Agree**.
 3. Yahoo redirects to `https://localhost:8080/?code=...`. The page will fail to load; that's expected. Copy the **whole URL** from the address bar and paste it into the terminal.
 4. Saves `YAHOO_CLIENT_ID`, `YAHOO_CLIENT_SECRET`, and `YAHOO_REFRESH_TOKEN` to `.env`. This file is gitignored and set to `chmod 600`.
-5. With `--set-secret`, runs `gh secret set YAHOO_REFRESH_TOKEN --repo k1kuma/raccoon-museum` for you. This needs the [GitHub CLI](https://cli.github.com/) logged in (`gh auth login`).
+5. With `--set-secret`, stores the Client ID, Client Secret, and refresh token as GitHub Actions secrets. This needs the [GitHub CLI](https://cli.github.com/) logged in (`gh auth login`). To replace saved Client ID and Secret values instead of reusing `.env`, run `python scripts/auth.py --replace-credentials --set-secret`.
 
 Without `--set-secret`, set the secrets yourself. These commands read from `.env`, so nothing is echoed:
 
@@ -109,13 +109,13 @@ grep '^YAHOO_CLIENT_SECRET=' .env | cut -d= -f2- | gh secret set YAHOO_CLIENT_SE
 > **Yahoo Fantasy API approval.** Since mid-2026, Yahoo makes apps apply for Fantasy Sports API access.
 > Without approval, logging in works but every API call fails with *"This application is not authorized to perform this action"*.
 > Apply with your app's Client ID at <https://sports.yahoo.com/developer/access/>. Approval reportedly takes 1–3 weeks.
-> After approval your existing token keeps working; just re-run the workflow.
+> After approval, run `scripts/auth.py --set-secret` once to create a refresh token for the approved app, then run the workflow.
 > Some people report fixing it by revoking the app's access in their Yahoo account and running `scripts/auth.py` again, so that's worth a try first.
 > Background: [uberfastman/yfpy#84](https://github.com/uberfastman/yfpy/issues/84).
 
 ### 1b. Scraping with browser cookies (works without API approval)
 
-While Yahoo hasn't approved the API app, the workflow can read the league's regular web pages instead. These are the same pages you see when you're logged in. It authenticates with your browser's Yahoo cookies, stored as the `YAHOO_COOKIES` secret. When that secret is set, the workflow scrapes instead of calling the API.
+While Yahoo hasn't approved the API app, the weekly update workflow can read the league's regular web pages instead. These are the same pages you see when you're logged in. It authenticates with your browser's Yahoo cookies, stored as the `YAHOO_COOKIES` secret. OAuth is preferred whenever `YAHOO_REFRESH_TOKEN` is configured, and live scores always use OAuth.
 
 1. In a desktop browser, log in at <https://football.fantasysports.yahoo.com/f1/705220>.
 2. Open DevTools (**⌥⌘I** / **F12**) → **Network**, reload the page, and click the first request (`705220`).

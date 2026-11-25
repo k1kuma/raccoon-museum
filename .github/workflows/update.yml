@@ -40,10 +40,10 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      # Preferred while the Yahoo API app is unapproved: read the league's web pages with browser cookies.
-      - name: Scrape Yahoo pages (incremental)
+      # Fallback for installations that have not yet received Yahoo Fantasy API approval.
+      - name: Scrape Yahoo pages (incremental fallback)
         id: scrape
-        if: github.event_name != 'push' && env.HAS_YAHOO_COOKIES == 'true'
+        if: github.event_name != 'push' && env.HAS_YAHOO_TOKEN != 'true' && env.HAS_YAHOO_COOKIES == 'true'
         continue-on-error: true
         env:
           YAHOO_COOKIES: ${{ secrets.YAHOO_COOKIES }}
@@ -70,7 +70,7 @@ jobs:
 
       - name: Ingest from Yahoo API (incremental)
         id: ingest
-        if: github.event_name != 'push' && env.HAS_YAHOO_TOKEN == 'true' && env.HAS_YAHOO_COOKIES != 'true'
+        if: github.event_name != 'push' && env.HAS_YAHOO_TOKEN == 'true'
         env:
           YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
           YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
@@ -106,14 +106,16 @@ jobs:
             python -m museum sample
           fi
 
-      # Best effort (1 request): keeps the Lobby's live/upcoming scoreboard on non-live deploys too.
-      - name: Live scoreboard snapshot
-        if: env.HAS_YAHOO_COOKIES == 'true'
+      # Best effort (2 API requests): keeps the Lobby's live/upcoming scoreboard on non-live deploys too.
+      - name: Live scoreboard snapshot (Yahoo API)
+        if: env.HAS_YAHOO_TOKEN == 'true'
         continue-on-error: true
         env:
-          YAHOO_COOKIES: ${{ secrets.YAHOO_COOKIES }}
-          YAHOO_SEASONS: ${{ vars.YAHOO_SEASONS }}
-        run: python -m museum scrape --live --delay 0
+          YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
+          YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
+          YAHOO_REFRESH_TOKEN: ${{ secrets.YAHOO_REFRESH_TOKEN }}
+          YAHOO_GAME_ID: ${{ vars.YAHOO_GAME_ID }}
+        run: python -m museum ingest --live --delay 0
 
       - name: Generate museum data
         run: python -m museum stats

@@ -2,7 +2,9 @@
 """One-time Yahoo OAuth flow. Run locally:
 
     python scripts/auth.py            # saves YAHOO_REFRESH_TOKEN to .env
-    python scripts/auth.py --set-secret   # also stores it as a GitHub Actions secret via `gh`
+    python scripts/auth.py --set-secret   # also stores all Yahoo values as GitHub Actions secrets via `gh`
+    python scripts/auth.py --replace-credentials --set-secret
+                                            # ignore old .env credentials and prompt for replacements
 
 Reads YAHOO_CLIENT_ID / YAHOO_CLIENT_SECRET from the environment or a gitignored .env
 (prompts if missing). Never commit the resulting .env.
@@ -61,11 +63,18 @@ def _hint(exc: "yahoo_auth.YahooAuthError") -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--set-secret", action="store_true", help="store the refresh token with `gh secret set`")
+    parser.add_argument("--set-secret", action="store_true",
+                        help="store the client ID, client secret, and refresh token with `gh secret set`")
+    parser.add_argument("--replace-credentials", action="store_true",
+                        help="ignore saved credentials and prompt for a replacement Client ID and Client Secret")
     parser.add_argument("--no-browser", action="store_true", help="print the URL instead of opening a browser")
     args = parser.parse_args()
 
     load_dotenv()
+    if args.replace_credentials:
+        # Explicitly discard both shell and .env values for this run so the user gets the hidden prompt again.
+        os.environ.pop("YAHOO_CLIENT_ID", None)
+        os.environ.pop("YAHOO_CLIENT_SECRET", None)
     client_id = (os.environ.get("YAHOO_CLIENT_ID") or input("Yahoo Client ID: ")).strip()
     client_secret = (os.environ.get("YAHOO_CLIENT_SECRET") or getpass.getpass("Yahoo Client Secret: ")).strip()
     if os.environ.get("YAHOO_CLIENT_ID"):
@@ -108,12 +117,17 @@ def main() -> int:
     print(f"\n✅ Saved YAHOO_CLIENT_ID, YAHOO_CLIENT_SECRET and YAHOO_REFRESH_TOKEN to {env_path} (gitignored).")
 
     if args.set_secret:
-        subprocess.run(
-            ["gh", "secret", "set", "YAHOO_REFRESH_TOKEN", "--repo", REPO],
-            input=refresh_token.encode(),
-            check=True,
-        )
-        print(f"✅ Stored YAHOO_REFRESH_TOKEN as a GitHub Actions secret on {REPO}.")
+        for name, value in {
+            "YAHOO_CLIENT_ID": client_id,
+            "YAHOO_CLIENT_SECRET": client_secret,
+            "YAHOO_REFRESH_TOKEN": refresh_token,
+        }.items():
+            subprocess.run(
+                ["gh", "secret", "set", name, "--repo", REPO],
+                input=value.encode(),
+                check=True,
+            )
+        print(f"✅ Stored Yahoo OAuth secrets as GitHub Actions secrets on {REPO}.")
     else:
         print("\nNext, store the refresh token as a GitHub secret (value is read from .env, not echoed):")
         print(f"   grep '^YAHOO_REFRESH_TOKEN=' .env | cut -d= -f2- | gh secret set YAHOO_REFRESH_TOKEN --repo {REPO}")

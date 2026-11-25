@@ -25,6 +25,21 @@ def test_as_list_unwraps_yahoo_shapes():
     assert ingest.as_list(None, "team") == []
 
 
+def test_live_snapshot_from_api_matchups():
+    matchups = [{"matchup": {"status": "midevent", "teams": {"team": [
+        {"team_key": "1.l.2.t.3", "team_points": {"total": "91.4"},
+         "team_projected_points": {"total": "110.2"}},
+        {"team_key": "1.l.2.t.4", "team_points": {"total": "88.1"},
+         "team_projected_points": {"total": "99.9"}},
+    ]}}}]
+    snapshot = ingest.live_snapshot_from_matchups(matchups, 2026, 12)
+    assert snapshot["season"] == 2026 and snapshot["week"] == 12 and not snapshot["final"]
+    assert snapshot["games"][0]["teams"] == [
+        {"teamKey": "1.l.2.t.3", "points": 91.4, "projected": 110.2},
+        {"teamKey": "1.l.2.t.4", "points": 88.1, "projected": 99.9},
+    ]
+
+
 def test_sample_to_stats_end_to_end(tmp_path):
     db_path = sample.generate(tmp_path / "s.sqlite", today=date(2026, 11, 14))
     out = tmp_path / "out"
