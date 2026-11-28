@@ -1,20 +1,8 @@
 {
- "fetched_at": "2026-11-27T10:01:34Z",
- "from": "2026-11-26",
- "to": "2026-12-05",
+ "fetched_at": "2026-11-28T10:01:29Z",
+ "from": "2026-11-27",
+ "to": "2026-12-06",
  "games": [
-  {
-   "kickoff": "2026-11-26T18:00Z",
-   "name": "CHI @ DET"
-  },
-  {
-   "kickoff": "2026-11-26T21:30Z",
-   "name": "PHI @ DAL"
-  },
-  {
-   "kickoff": "2026-11-27T01:20Z",
-   "name": "KC @ BUF"
-  },
   {
    "kickoff": "2026-11-27T20:00Z",
    "name": "DEN @ PIT"
@@ -66,6 +54,54 @@
   {
    "kickoff": "2026-12-04T01:15Z",
    "name": "KC @ LAR"
+  },
+  {
+   "kickoff": "2026-12-06T18:00Z",
+   "name": "CIN @ CLE"
+  },
+  {
+   "kickoff": "2026-12-06T18:00Z",
+   "name": "DET @ ATL"
+  },
+  {
+   "kickoff": "2026-12-06T18:00Z",
+   "name": "GB @ NO"
+  },
+  {
+   "kickoff": "2026-12-06T18:00Z",
+   "name": "JAX @ CHI"
+  },
+  {
+   "kickoff": "2026-12-06T18:00Z",
+   "name": "LAC @ TB"
+  },
+  {
+   "kickoff": "2026-12-06T18:00Z",
+   "name": "SF @ NYG"
+  },
+  {
+   "kickoff": "2026-12-06T18:00Z",
+   "name": "WSH @ TEN"
+  },
+  {
+   "kickoff": "2026-12-06T21:05Z",
+   "name": "MIA @ DEN"
+  },
+  {
+   "kickoff": "2026-12-06T21:05Z",
+   "name": "PHI @ ARI"
+  },
+  {
+   "kickoff": "2026-12-06T21:25Z",
+   "name": "BUF @ NE"
+  },
+  {
+   "kickoff": "2026-12-06T21:25Z",
+   "name": "CAR @ MIN"
+  },
+  {
+   "kickoff": "2026-12-07T01:20Z",
+   "name": "HOU @ PIT"
   }
  ]
 }
